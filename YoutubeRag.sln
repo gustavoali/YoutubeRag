@@ -1,0 +1,39 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Api", "YoutubeRag.Api\YoutubeRag.Api.csproj", "{A1B2C3D4-E5F6-7890-ABCD-123456789012}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Domain", "YoutubeRag.Domain\YoutubeRag.Domain.csproj", "{16FA7871-3161-4A8F-9D87-093FE08FB061}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Application", "YoutubeRag.Application\YoutubeRag.Application.csproj", "{EECB5112-0063-4F86-9CFC-009A29D08CAC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Infrastructure", "YoutubeRag.Infrastructure\YoutubeRag.Infrastructure.csproj", "{E433DC7F-EB90-437F-9950-8FA1142AB59B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-E5F6-7890-ABCD-123456789012}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-123456789012}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-123456789012}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-123456789012}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16FA7871-3161-4A8F-9D87-093FE08FB061}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16FA7871-3161-4A8F-9D87-093FE08FB061}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16FA7871-3161-4A8F-9D87-093FE08FB061}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16FA7871-3161-4A8F-9D87-093FE08FB061}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EECB5112-0063-4F86-9CFC-009A29D08CAC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EECB5112-0063-4F86-9CFC-009A29D08CAC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EECB5112-0063-4F86-9CFC-009A29D08CAC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EECB5112-0063-4F86-9CFC-009A29D08CAC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E433DC7F-EB90-437F-9950-8FA1142AB59B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E433DC7F-EB90-437F-9950-8FA1142AB59B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E433DC7F-EB90-437F-9950-8FA1142AB59B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E433DC7F-EB90-437F-9950-8FA1142AB59B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
