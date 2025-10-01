@@ -8,272 +8,325 @@ using YoutubeRag.Infrastructure.Data;
 using YoutubeRag.Api.Configuration;
 using YoutubeRag.Api.Authentication;
 
-var builder = WebApplication.CreateBuilder(args);
+// Entry point - Create and run the application
+var app = await Program.CreateWebApplication(args);
+await app.RunAsync();
 
-// Configuration
-var configuration = builder.Configuration;
-var environment = builder.Environment;
-
-// Bind configuration sections
-var appSettings = new AppSettings();
-configuration.GetSection(AppSettings.SectionName).Bind(appSettings);
-builder.Services.Configure<AppSettings>(configuration.GetSection(AppSettings.SectionName));
-
-var rateLimitingSettings = new RateLimitingSettings();
-configuration.GetSection(RateLimitingSettings.SectionName).Bind(rateLimitingSettings);
-builder.Services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
-
-// Add services to the container
-builder.Services.AddControllers();
-
-// Database Configuration - Conditional based on StorageMode
-if (appSettings.UseDatabaseStorage)
+// Make the Program class accessible for testing
+public partial class Program
 {
-    var connectionString = configuration.GetConnectionString("DefaultConnection") ??
-        "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;";
-
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 23))));
-}
-
-// Redis Configuration
-var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-    ConnectionMultiplexer.Connect(redisConnectionString));
-
-builder.Services.AddStackExchangeRedisCache(options =>
+    // Factory method to create the WebApplication without running it
+    public static async Task<WebApplication> CreateWebApplication(string[] args)
 {
-    options.Configuration = redisConnectionString;
-});
+    var builder = WebApplication.CreateBuilder(args);
 
-// Authentication - Always configure, but with different behavior based on EnableAuth
-if (appSettings.EnableAuth)
-{
-    // Real JWT Authentication
-    var jwtSettings = configuration.GetSection("JwtSettings");
-    var secretKey = jwtSettings["SecretKey"] ?? "development-secret-please-change-in-production-youtube-rag-api-2024";
-    var key = Encoding.ASCII.GetBytes(secretKey);
+    // Configuration
+    var configuration = builder.Configuration;
+    var environment = builder.Environment;
 
-    builder.Services.AddAuthentication(options =>
+    // Bind configuration sections
+    var appSettings = new AppSettings();
+    configuration.GetSection(AppSettings.SectionName).Bind(appSettings);
+    builder.Services.Configure<AppSettings>(configuration.GetSection(AppSettings.SectionName));
+
+    var rateLimitingSettings = new RateLimitingSettings();
+    configuration.GetSection(RateLimitingSettings.SectionName).Bind(rateLimitingSettings);
+    builder.Services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
+
+    // Add services to the container
+    builder.Services.AddControllers();
+
+    // Add AutoMapper - scan the Application assembly for all mapping profiles
+    builder.Services.AddAutoMapper(typeof(YoutubeRag.Application.Mappings.UserMappingProfile).Assembly);
+
+    // Register application services
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IAuthService,
+        YoutubeRag.Application.Services.AuthService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IUserService,
+        YoutubeRag.Application.Services.UserService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IVideoService,
+        YoutubeRag.Application.Services.VideoService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.ISearchService,
+        YoutubeRag.Application.Services.SearchService>();
+
+    // Register infrastructure services
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IVideoProcessingService,
+        YoutubeRag.Infrastructure.Services.VideoProcessingService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IEmbeddingService,
+        YoutubeRag.Infrastructure.Services.LocalEmbeddingService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IYouTubeService,
+        YoutubeRag.Infrastructure.Services.YouTubeService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.ITranscriptionService,
+        YoutubeRag.Infrastructure.Services.LocalWhisperService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IJobService,
+        YoutubeRag.Infrastructure.Services.JobService>();
+
+    // Register repositories
+    builder.Services.AddScoped(typeof(YoutubeRag.Application.Interfaces.IRepository<>),
+        typeof(YoutubeRag.Infrastructure.Repositories.Repository<>));
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IUserRepository,
+        YoutubeRag.Infrastructure.Repositories.UserRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IVideoRepository,
+        YoutubeRag.Infrastructure.Repositories.VideoRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IJobRepository,
+        YoutubeRag.Infrastructure.Repositories.JobRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.ITranscriptSegmentRepository,
+        YoutubeRag.Infrastructure.Repositories.TranscriptSegmentRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IRefreshTokenRepository,
+        YoutubeRag.Infrastructure.Repositories.RefreshTokenRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IUnitOfWork,
+        YoutubeRag.Infrastructure.Repositories.UnitOfWork>();
+
+    // Database Configuration - Conditional based on StorageMode
+    if (appSettings.UseDatabaseStorage)
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
+        var connectionString = configuration.GetConnectionString("DefaultConnection") ??
+            "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;";
+
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 23))));
+    }
+
+    // Redis Configuration
+    var redisConnectionString = configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+        ConnectionMultiplexer.Connect(redisConnectionString));
+
+    builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.RequireHttpsMetadata = appSettings.IsProduction;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
+        options.Configuration = redisConnectionString;
     });
-}
-else
-{
-    // Mock Authentication for development/testing - allows all requests
-    builder.Services.AddAuthentication("Mock")
-        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, MockAuthenticationHandler>(
-            "Mock", options => { });
-}
 
-// CORS - Conditional based on EnableCors
-if (appSettings.EnableCors)
-{
-    builder.Services.AddCors(options =>
+    // Authentication - Always configure, but with different behavior based on EnableAuth
+    if (appSettings.EnableAuth)
     {
-        options.AddPolicy("AllowedOrigins", policy =>
+        // Real JWT Authentication
+        var jwtSettings = configuration.GetSection("JwtSettings");
+        var secretKey = jwtSettings["SecretKey"] ?? "development-secret-please-change-in-production-youtube-rag-api-2024";
+        var key = Encoding.ASCII.GetBytes(secretKey);
+
+        builder.Services.AddAuthentication(options =>
         {
-            var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() ??
-                new[] { "http://localhost:3000" };
-
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        });
-    });
-}
-
-// Rate Limiting - Always enabled but configurable
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = 429;
-    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(
-        context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
-            factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = appSettings.IsProduction;
+            options.SaveToken = true;
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                AutoReplenishment = true,
-                PermitLimit = rateLimitingSettings.PermitLimit,
-                Window = TimeSpan.FromMinutes(rateLimitingSettings.WindowMinutes)
-            }));
-});
-
-// Health Checks
-builder.Services.AddHealthChecks();
-
-// Swagger/OpenAPI - Conditional based on EnableDocs
-if (appSettings.EnableDocs)
-{
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(options =>
-    {
-        options.SwaggerDoc("v1", new OpenApiInfo
-        {
-            Title = $"YouTube RAG API - .NET ({appSettings.Environment})",
-            Version = "v1.0.0",
-            Description = $"YouTube RAG - Intelligent Video Search and Analysis (.NET Implementation) - Environment: {appSettings.Environment}"
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
         });
-
-    // Add JWT authentication to Swagger
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    }
+    else
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
+        // Mock Authentication for development/testing - allows all requests
+        builder.Services.AddAuthentication("Mock")
+            .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, MockAuthenticationHandler>(
+                "Mock", options => { });
+    }
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    // CORS - Conditional based on EnableCors
+    if (appSettings.EnableCors)
     {
+        builder.Services.AddCors(options =>
         {
-            new OpenApiSecurityScheme
+            options.AddPolicy("AllowedOrigins", policy =>
             {
-                Reference = new OpenApiReference
+                var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() ??
+                    new[] { "http://localhost:3000" };
+
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials();
+            });
+        });
+    }
+
+    // Rate Limiting - Always enabled but configurable
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = 429;
+        options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(
+            context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+                factory: partition => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
                 {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
+                    AutoReplenishment = true,
+                    PermitLimit = rateLimitingSettings.PermitLimit,
+                    Window = TimeSpan.FromMinutes(rateLimitingSettings.WindowMinutes)
+                }));
+    });
+
+    // Health Checks
+    builder.Services.AddHealthChecks();
+
+    // Swagger/OpenAPI - Conditional based on EnableDocs
+    if (appSettings.EnableDocs)
+    {
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = $"YouTube RAG API - .NET ({appSettings.Environment})",
+                Version = "v1.0.0",
+                Description = $"YouTube RAG - Intelligent Video Search and Analysis (.NET Implementation) - Environment: {appSettings.Environment}"
+            });
+
+            // Add JWT authentication to Swagger
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
+                Name = "Authorization",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.ApiKey,
+                Scheme = "Bearer"
+            });
+
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
                 }
-            },
-            Array.Empty<string>()
-        }
-    });
+            });
 
-    // Organize endpoints by tags
-    options.TagActionsBy(api => new[]
-    {
-        api.GroupName ?? api.ActionDescriptor.RouteValues["controller"]?.ToLower() switch
-        {
-            "auth" => "🔐 Authentication",
-            "videos" => "🎥 Videos",
-            "search" => "🔍 Search",
-            "jobs" => "⚙️ Jobs",
-            "users" => "👥 Users",
-            "files" => "📁 Files",
-            "websocket" => "🔄 WebSocket",
-            "health" => "💊 Health",
-            _ => "📋 General"
-        }
-    });
-    });
-}
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline
-// Swagger/OpenAPI - Conditional based on EnableDocs
-if (appSettings.EnableDocs)
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "YouTube RAG API v1");
-        options.RoutePrefix = "docs";
-        options.EnablePersistAuthorization();
-        options.DisplayRequestDuration();
-    });
-}
-
-// Security Headers Middleware
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
-    context.Response.Headers.Add("X-Frame-Options", "DENY");
-    context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
-
-    if (appSettings.IsProduction)
-    {
-        context.Response.Headers.Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    }
-
-    await next();
-});
-
-// Apply middleware conditionally
-if (appSettings.EnableCors)
-{
-    app.UseCors("AllowedOrigins");
-}
-
-app.UseRateLimiter();
-
-// Always use authentication and authorization (either real JWT or mock)
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Health Check Endpoints
-app.MapHealthChecks("/health");
-app.MapHealthChecks("/ready");
-app.MapHealthChecks("/live");
-
-// API Routes
-app.MapControllers();
-
-// Root endpoint
-app.MapGet("/", () => new
-{
-    message = "YouTube RAG API - .NET",
-    version = "1.0.0",
-    status = "healthy",
-    docs_url = appSettings.EnableDocs ? "/docs" : null,
-    environment = appSettings.Environment,
-    processing_mode = appSettings.ProcessingMode,
-    storage_mode = appSettings.StorageMode,
-    features = new
-    {
-        auth_enabled = appSettings.EnableAuth,
-        websockets_enabled = appSettings.EnableWebSockets,
-        metrics_enabled = appSettings.EnableMetrics,
-        real_processing_enabled = appSettings.EnableRealProcessing
-    }
-})
-.WithTags("📋 General");
-
-// Database initialization - Only if using database storage
-if (appSettings.UseDatabaseStorage)
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        try
-        {
-            await context.Database.EnsureCreatedAsync();
-            Console.WriteLine($"Database connection successful - Storage Mode: {appSettings.StorageMode}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Database connection failed: {ex.Message}");
-            if (appSettings.IsDevelopment)
+            // Organize endpoints by tags
+            options.TagActionsBy(api => new[]
             {
-                Console.WriteLine("Development mode: Continuing without database...");
+                api.GroupName ?? api.ActionDescriptor.RouteValues["controller"]?.ToLower() switch
+                {
+                    "auth" => "🔐 Authentication",
+                    "videos" => "🎥 Videos",
+                    "search" => "🔍 Search",
+                    "jobs" => "⚙️ Jobs",
+                    "users" => "👥 Users",
+                    "files" => "📁 Files",
+                    "websocket" => "🔄 WebSocket",
+                    "health" => "💊 Health",
+                    _ => "📋 General"
+                }
+            });
+        });
+    }
+
+    var app = builder.Build();
+
+    // Configure the HTTP request pipeline
+    // Swagger/OpenAPI - Conditional based on EnableDocs
+    if (appSettings.EnableDocs)
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "YouTube RAG API v1");
+            options.RoutePrefix = "docs";
+            options.EnablePersistAuthorization();
+            options.DisplayRequestDuration();
+        });
+    }
+
+    // Security Headers Middleware
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.Add("X-Frame-Options", "DENY");
+        context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+
+        if (appSettings.IsProduction)
+        {
+            context.Response.Headers.Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        }
+
+        await next();
+    });
+
+    // Apply middleware conditionally
+    if (appSettings.EnableCors)
+    {
+        app.UseCors("AllowedOrigins");
+    }
+
+    app.UseRateLimiter();
+
+    // Always use authentication and authorization (either real JWT or mock)
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    // Health Check Endpoints
+    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/ready");
+    app.MapHealthChecks("/live");
+
+    // API Routes
+    app.MapControllers();
+
+    // Root endpoint
+    app.MapGet("/", () => new
+    {
+        message = "YouTube RAG API - .NET",
+        version = "1.0.0",
+        status = "healthy",
+        docs_url = appSettings.EnableDocs ? "/docs" : null,
+        environment = appSettings.Environment,
+        processing_mode = appSettings.ProcessingMode,
+        storage_mode = appSettings.StorageMode,
+        features = new
+        {
+            auth_enabled = appSettings.EnableAuth,
+            websockets_enabled = appSettings.EnableWebSockets,
+            metrics_enabled = appSettings.EnableMetrics,
+            real_processing_enabled = appSettings.EnableRealProcessing
+        }
+    })
+    .WithTags("📋 General");
+
+    // Database initialization - Only if using database storage
+    if (appSettings.UseDatabaseStorage)
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            try
+            {
+                await context.Database.EnsureCreatedAsync();
+                Console.WriteLine($"Database connection successful - Storage Mode: {appSettings.StorageMode}");
             }
-            else
+            catch (Exception ex)
             {
-                throw; // In production, fail fast if database is not available
+                Console.WriteLine($"Database connection failed: {ex.Message}");
+                if (appSettings.IsDevelopment)
+                {
+                    Console.WriteLine("Development mode: Continuing without database...");
+                }
+                else
+                {
+                    throw; // In production, fail fast if database is not available
+                }
             }
         }
     }
-}
-else
-{
-    Console.WriteLine($"Database initialization skipped - Storage Mode: {appSettings.StorageMode}");
-}
+    else
+    {
+        Console.WriteLine($"Database initialization skipped - Storage Mode: {appSettings.StorageMode}");
+    }
 
-app.Run();
+    return app; // Return without calling Run()
+    }
+}

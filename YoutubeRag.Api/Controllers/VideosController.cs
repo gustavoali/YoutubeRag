@@ -1,6 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using YoutubeRag.Domain.Enums;
+using YoutubeRag.Application.Interfaces;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.DTOs.Video;
+using YoutubeRag.Application.Exceptions;
+using YoutubeRag.Api.Configuration;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -10,6 +17,19 @@ namespace YoutubeRag.Api.Controllers;
 [Authorize]
 public class VideosController : ControllerBase
 {
+    private readonly IVideoProcessingService _videoProcessingService;
+    private readonly IVideoService _videoService;
+    private readonly AppSettings _appSettings;
+
+    public VideosController(
+        IVideoProcessingService videoProcessingService,
+        IVideoService videoService,
+        IOptions<AppSettings> appSettings)
+    {
+        _videoProcessingService = videoProcessingService;
+        _videoService = videoService;
+        _appSettings = appSettings.Value;
+    }
     /// <summary>
     /// List user's videos with filtering and pagination
     /// </summary>
@@ -22,42 +42,24 @@ public class VideosController : ControllerBase
         string sortBy = "created_at",
         string sortOrder = "desc")
     {
-        // Mock response
-        var videos = new[]
+        try
         {
-            new {
-                id = "1",
-                title = "Sample Video 1",
-                description = "A sample video for testing",
-                youtube_id = "dQw4w9WgXcQ",
-                youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                thumbnail_url = "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-                duration = "00:03:33",
-                status = VideoStatus.Completed.ToString(),
-                created_at = DateTime.UtcNow.AddDays(-5),
-                processing_progress = 100
-            },
-            new {
-                id = "2",
-                title = "Sample Video 2",
-                description = "Another sample video",
-                youtube_id = "oHg5SJYRHA0",
-                youtube_url = "https://www.youtube.com/watch?v=oHg5SJYRHA0",
-                thumbnail_url = "https://img.youtube.com/vi/oHg5SJYRHA0/maxresdefault.jpg",
-                duration = "00:02:15",
-                status = VideoStatus.Processing.ToString(),
-                created_at = DateTime.UtcNow.AddDays(-2),
-                processing_progress = 75
-            }
-        };
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _videoService.GetAllAsync(page, pageSize, userId);
 
-        return Ok(new {
-            videos,
-            total = videos.Length,
-            page,
-            page_size = pageSize,
-            has_more = false
-        });
+            return Ok(new {
+                videos = result.Items,
+                total = result.TotalCount,
+                page = result.PageNumber,
+                page_size = result.PageSize,
+                total_pages = result.TotalPages,
+                has_more = result.HasNext
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -95,14 +97,40 @@ public class VideosController : ControllerBase
             return BadRequest(new { error = new { code = "INVALID_URL", message = "URL is required" } });
         }
 
-        var videoId = Guid.NewGuid().ToString();
+        try
+        {
+            var userId = User.Identity?.Name ?? "anonymous-user";
 
-        return Ok(new {
-            id = videoId,
-            url = request.Url,
-            status = VideoStatus.Pending.ToString(),
-            message = "Video processing from URL started"
-        });
+            var video = await _videoProcessingService.ProcessVideoFromUrlAsync(
+                request.Url,
+                request.Title,
+                request.Description,
+                userId);
+
+            return Ok(new {
+                id = video.Id,
+                title = video.Title,
+                description = video.Description,
+                url = request.Url,
+                youtube_id = video.YoutubeId,
+                thumbnail_url = video.ThumbnailUrl,
+                status = video.Status.ToString(),
+                processing_progress = video.ProcessingProgress,
+                message = _appSettings.UseRealProcessing
+                    ? "Video processing from URL started - real processing"
+                    : "Video processing from URL started - mock mode",
+                created_at = video.CreatedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new {
+                error = new {
+                    code = "PROCESSING_ERROR",
+                    message = ex.Message
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -111,18 +139,37 @@ public class VideosController : ControllerBase
     [HttpGet("{videoId}/progress")]
     public async Task<ActionResult> GetVideoProgress(string videoId)
     {
-        return Ok(new {
-            video_id = videoId,
-            status = VideoStatus.Processing.ToString(),
-            progress = 75,
-            stages = new[] {
-                new { name = "download", status = "completed", progress = 100 },
-                new { name = "audio_extraction", status = "completed", progress = 100 },
-                new { name = "transcription", status = "running", progress = 75 },
-                new { name = "embedding", status = "pending", progress = 0 }
-            },
-            estimated_completion = DateTime.UtcNow.AddMinutes(5)
-        });
+        try
+        {
+            var progress = await _videoProcessingService.GetProcessingProgressAsync(videoId);
+
+            return Ok(new {
+                video_id = progress.VideoId,
+                status = progress.Status.ToString(),
+                progress = progress.OverallProgress,
+                current_stage = progress.CurrentStage,
+                stages = progress.Stages.Select(stage => new {
+                    name = stage.Name,
+                    status = stage.Status,
+                    progress = stage.Progress,
+                    started_at = stage.StartedAt,
+                    completed_at = stage.CompletedAt,
+                    error_message = stage.ErrorMessage
+                }),
+                estimated_completion = progress.EstimatedCompletion,
+                error_message = progress.ErrorMessage,
+                mode = _appSettings.UseRealProcessing ? "real" : "mock"
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new {
+                error = new {
+                    code = "PROGRESS_ERROR",
+                    message = ex.Message
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -131,32 +178,44 @@ public class VideosController : ControllerBase
     [HttpGet("{videoId}")]
     public async Task<ActionResult> GetVideo(string videoId)
     {
-        return Ok(new {
-            id = videoId,
-            title = "Sample Video",
-            description = "A sample video",
-            youtube_id = "dQw4w9WgXcQ",
-            youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            thumbnail_url = "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-            duration = "00:03:33",
-            status = VideoStatus.Completed.ToString(),
-            created_at = DateTime.UtcNow.AddDays(-5),
-            processing_progress = 100,
-            transcript_segments_count = 45
-        });
+        try
+        {
+            var video = await _videoService.GetDetailsAsync(videoId);
+            return Ok(video);
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFound(new { error = new { code = "NOT_FOUND", message = ex.Message } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
     /// Update video metadata
     /// </summary>
     [HttpPatch("{videoId}")]
-    public async Task<ActionResult> UpdateVideo(string videoId, [FromBody] Dictionary<string, object> updates)
+    public async Task<ActionResult> UpdateVideo(string videoId, [FromBody] UpdateVideoDto updateDto)
     {
-        return Ok(new {
-            id = videoId,
-            message = "Video updated successfully",
-            updated_fields = updates.Keys
-        });
+        try
+        {
+            var video = await _videoService.UpdateAsync(videoId, updateDto);
+            return Ok(new {
+                id = video.Id,
+                message = "Video updated successfully",
+                video
+            });
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFound(new { error = new { code = "NOT_FOUND", message = ex.Message } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -165,7 +224,19 @@ public class VideosController : ControllerBase
     [HttpDelete("{videoId}")]
     public async Task<ActionResult> DeleteVideo(string videoId)
     {
-        return Ok(new { message = "Video deleted successfully" });
+        try
+        {
+            await _videoService.DeleteAsync(videoId);
+            return Ok(new { message = "Video deleted successfully" });
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFound(new { error = new { code = "NOT_FOUND", message = ex.Message } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>

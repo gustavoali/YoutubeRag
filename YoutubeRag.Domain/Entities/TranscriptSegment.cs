@@ -16,8 +16,8 @@ public class TranscriptSegment : BaseEntity
     public double EndTime { get; set; }
     public int SegmentIndex { get; set; }
 
-    [Column(TypeName = "JSON")]
-    public string? Embedding { get; set; }
+    [Column(TypeName = "TEXT")]
+    public string? EmbeddingVector { get; set; }
 
     public double? Confidence { get; set; }
 

@@ -13,6 +13,9 @@ public class Job : BaseEntity
     [Required]
     public JobStatus Status { get; set; } = JobStatus.Pending;
 
+    [StringLength(500)]
+    public string? StatusMessage { get; set; }
+
     public int Progress { get; set; } = 0;
 
     [Column(TypeName = "TEXT")]

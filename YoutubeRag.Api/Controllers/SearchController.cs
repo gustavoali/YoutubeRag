@@ -1,5 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.DTOs.Search;
+using YoutubeRag.Application.Exceptions;
+using YoutubeRag.Api.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -9,6 +14,16 @@ namespace YoutubeRag.Api.Controllers;
 [Authorize]
 public class SearchController : ControllerBase
 {
+    private readonly ISearchService _searchService;
+    private readonly AppSettings _appSettings;
+
+    public SearchController(
+        ISearchService searchService,
+        IOptions<AppSettings> appSettings)
+    {
+        _searchService = searchService;
+        _appSettings = appSettings.Value;
+    }
     /// <summary>
     /// Semantic search across video transcripts
     /// </summary>
@@ -20,40 +35,41 @@ public class SearchController : ControllerBase
             return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Query is required" } });
         }
 
-        // Mock semantic search results
-        var results = new[]
+        try
         {
-            new {
-                video_id = "1",
-                video_title = "Sample Video 1",
-                segment_id = "seg_1",
-                segment_text = "This is a relevant segment that matches your query about YouTube RAG",
-                start_time = 45.5,
-                end_time = 52.3,
-                relevance_score = 0.92,
-                youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                thumbnail_url = "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
-            },
-            new {
-                video_id = "2",
-                video_title = "Sample Video 2",
-                segment_id = "seg_2",
-                segment_text = "Another relevant segment discussing video processing and analysis",
-                start_time = 120.1,
-                end_time = 128.7,
-                relevance_score = 0.87,
-                youtube_url = "https://www.youtube.com/watch?v=oHg5SJYRHA0",
-                thumbnail_url = "https://img.youtube.com/vi/oHg5SJYRHA0/maxresdefault.jpg"
-            }
-        };
+            var startTime = DateTime.UtcNow;
 
-        return Ok(new {
-            query = request.Query,
-            results,
-            total_results = results.Length,
-            search_type = "semantic",
-            processing_time_ms = 245
-        });
+            var searchDto = new SearchRequestDto(
+                Query: request.Query,
+                Limit: request.MaxResults,
+                Offset: 0,
+                MinScore: request.MinRelevanceScore
+            );
+
+            var searchResults = await _searchService.SearchAsync(searchDto);
+
+            var processingTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            return Ok(new {
+                query = searchResults.Query,
+                results = searchResults.Results,
+                total_results = searchResults.TotalResults,
+                search_type = "semantic",
+                processing_time_ms = Math.Round(processingTime, 1),
+                mode = _appSettings.UseRealProcessing ? "real" : "mock",
+                limit = searchResults.Limit,
+                offset = searchResults.Offset
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new {
+                error = new {
+                    code = "SEARCH_ERROR",
+                    message = ex.Message
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -137,20 +153,20 @@ public class SearchController : ControllerBase
             return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Query parameter 'q' is required" } });
         }
 
-        // Mock search suggestions
-        var suggestions = new[]
+        try
         {
-            "YouTube API integration",
-            "YouTube video processing",
-            "YouTube transcript analysis",
-            "YouTube data extraction"
-        }.Take(limit);
+            var suggestions = await _searchService.GetSearchSuggestionsAsync(q, limit);
 
-        return Ok(new {
-            query = q,
-            suggestions,
-            count = suggestions.Count()
-        });
+            return Ok(new {
+                query = q,
+                suggestions,
+                count = suggestions.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>

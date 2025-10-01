@@ -65,7 +65,7 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Video)
                   .WithMany(e => e.Jobs)
                   .HasForeignKey(e => e.VideoId)
-                  .OnDelete(DeleteBehavior.SetNull);
+                  .OnDelete(DeleteBehavior.NoAction);
         });
 
         // TranscriptSegment Configuration

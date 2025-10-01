@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # MySQL Database - Required for data persistence
+  mysql:
+    image: mysql:8.0
+    container_name: youtube-rag-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: youtube_rag_local
+      MYSQL_USER: youtube_rag_user
+      MYSQL_PASSWORD: youtube_rag_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+
+  # Redis Cache - Required for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: youtube-rag-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+
+  # Redis Commander - Optional Web UI for Redis (development only)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: youtube-rag-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - youtube-rag-network
+    profiles:
+      - dev-tools
+
+  # Adminer - Optional Web UI for MySQL (development only)
+  adminer:
+    image: adminer:latest
+    container_name: youtube-rag-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    networks:
+      - youtube-rag-network
+    profiles:
+      - dev-tools
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  youtube-rag-network:
+    driver: bridge
+    name: youtube-rag-network

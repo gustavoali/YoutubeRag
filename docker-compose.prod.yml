@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: youtube-rag-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=youtube_rag;Uid=youtube_rag_user;Pwd=${MYSQL_PASSWORD:-youtube_rag_password};
+      - ConnectionStrings__Redis=redis:6379
+      - OpenAI__ApiKey=${OPENAI_API_KEY:-}
+      - JwtSettings__SecretKey=${JWT_SECRET:-change-this-secret-key-in-production}
+    ports:
+      - "80:8080"
+      - "443:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: youtube-rag-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: youtube_rag
+      MYSQL_USER: youtube_rag_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-youtube_rag_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: youtube-rag-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: youtube-rag-nginx
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - api
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+    profiles:
+      - with-nginx
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_data:
+    driver: local
+  app_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  youtube-rag-network:
+    driver: bridge
+    name: youtube-rag-network

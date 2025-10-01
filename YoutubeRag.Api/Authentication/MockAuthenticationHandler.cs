@@ -18,9 +18,9 @@ public class MockAuthenticationHandler : AuthenticationHandler<AuthenticationSch
         // Create a mock user for development/testing
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, "mock-user-id"),
-            new Claim(ClaimTypes.Name, "Mock User"),
-            new Claim(ClaimTypes.Email, "mock@example.com"),
+            new Claim(ClaimTypes.NameIdentifier, "anonymous-user"),
+            new Claim(ClaimTypes.Name, "anonymous-user"),
+            new Claim(ClaimTypes.Email, "anonymous@localhost"),
             new Claim("scope", "api.access")
         };
 

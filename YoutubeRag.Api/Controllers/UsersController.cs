@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using YoutubeRag.Api.Models;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.DTOs.User;
+using YoutubeRag.Application.Exceptions;
+using System.Security.Claims;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -10,26 +14,38 @@ namespace YoutubeRag.Api.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
+    private readonly IUserService _userService;
+
+    public UsersController(IUserService userService)
+    {
+        _userService = userService;
+    }
     /// <summary>
     /// Get current user profile
     /// </summary>
     [HttpGet("me")]
     public async Task<ActionResult<UserProfile>> GetCurrentUser()
     {
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-
-        return Ok(new UserProfile
+        try
         {
-            Id = userId ?? "",
-            Email = email ?? "",
-            Name = "Test User",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow.AddDays(-30),
-            Avatar = "https://via.placeholder.com/150",
-            Bio = "YouTube RAG enthusiast",
-            LastLoginAt = DateTime.UtcNow.AddMinutes(-10)
-        });
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { error = new { code = "UNAUTHORIZED", message = "User not authenticated" } });
+            }
+
+            var user = await _userService.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new { error = new { code = "NOT_FOUND", message = "User not found" } });
+            }
+
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -38,20 +54,34 @@ public class UsersController : ControllerBase
     [HttpPatch("me")]
     public async Task<ActionResult<UserProfile>> UpdateCurrentUser([FromBody] UpdateUserRequest request)
     {
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-
-        return Ok(new UserProfile
+        try
         {
-            Id = userId ?? "",
-            Email = email ?? "",
-            Name = request.Name ?? "Test User",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow.AddDays(-30),
-            Avatar = request.Avatar,
-            Bio = request.Bio,
-            LastLoginAt = DateTime.UtcNow.AddMinutes(-10)
-        });
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { error = new { code = "UNAUTHORIZED", message = "User not authenticated" } });
+            }
+
+            var updateDto = new UpdateUserDto
+            {
+                Name = request.Name
+            };
+
+            var user = await _userService.UpdateAsync(userId, updateDto);
+            return Ok(user);
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFound(new { error = new { code = "NOT_FOUND", message = ex.Message } });
+        }
+        catch (BusinessValidationException ex)
+        {
+            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = ex.Message, errors = ex.Errors } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -114,49 +144,25 @@ public class UsersController : ControllerBase
         DateTime? toDate = null,
         string period = "week")
     {
-        return Ok(new {
-            overview = new {
-                total_videos = 25,
-                total_duration_hours = 20.8,
-                total_searches = 156,
-                account_created = DateTime.UtcNow.AddDays(-90)
-            },
-            video_stats = new {
-                by_status = new[] {
-                    new { status = "completed", count = 21 },
-                    new { status = "processing", count = 2 },
-                    new { status = "failed", count = 2 }
-                },
-                by_source = new[] {
-                    new { source = "youtube_url", count = 18 },
-                    new { source = "direct_upload", count = 7 }
-                },
-                processing_times = new {
-                    average_minutes = 12.5,
-                    fastest_minutes = 3.2,
-                    slowest_minutes = 45.8
-                }
-            },
-            search_stats = new {
-                total_searches = 156,
-                avg_results_per_search = 8.2,
-                most_active_hours = new[] { 14, 15, 16, 20, 21 },
-                search_types = new[] {
-                    new { type = "semantic", count = 98, percentage = 62.8 },
-                    new { type = "keyword", count = 42, percentage = 26.9 },
-                    new { type = "advanced", count = 16, percentage = 10.3 }
-                }
-            },
-            usage_trends = new[] {
-                new { date = DateTime.UtcNow.Date.AddDays(-6), videos = 2, searches = 8 },
-                new { date = DateTime.UtcNow.Date.AddDays(-5), videos = 1, searches = 12 },
-                new { date = DateTime.UtcNow.Date.AddDays(-4), videos = 3, searches = 15 },
-                new { date = DateTime.UtcNow.Date.AddDays(-3), videos = 0, searches = 6 },
-                new { date = DateTime.UtcNow.Date.AddDays(-2), videos = 2, searches = 18 },
-                new { date = DateTime.UtcNow.Date.AddDays(-1), videos = 1, searches = 22 },
-                new { date = DateTime.UtcNow.Date, videos = 0, searches = 14 }
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { error = new { code = "UNAUTHORIZED", message = "User not authenticated" } });
             }
-        });
+
+            var stats = await _userService.GetStatsAsync(userId);
+            return Ok(stats);
+        }
+        catch (EntityNotFoundException ex)
+        {
+            return NotFound(new { error = new { code = "NOT_FOUND", message = ex.Message } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>

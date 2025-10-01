@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using YoutubeRag.Api.Models;
-using System.IdentityModel.Tokens.Jwt;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.DTOs.Auth;
+using YoutubeRag.Application.Exceptions;
 using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using BCrypt.Net;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -14,46 +13,41 @@ namespace YoutubeRag.Api.Controllers;
 [Tags("🔐 Authentication")]
 public class AuthController : ControllerBase
 {
-    private readonly IConfiguration _configuration;
+    private readonly IAuthService _authService;
 
-    public AuthController(IConfiguration configuration)
+    public AuthController(IAuthService authService)
     {
-        _configuration = configuration;
+        _authService = authService;
     }
 
     /// <summary>
-    /// Register a new user - WORKING VERSION (copied from successful simple endpoint)
+    /// Register a new user
     /// </summary>
     [HttpPost("register")]
     public async Task<ActionResult<TokenResponse>> RegisterUser(RegisterRequest request)
     {
         try
         {
-            // Validate input
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            var registerDto = new RegisterRequestDto
             {
-                return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Email and password are required" } });
-            }
-
-            // Mock user creation (in real implementation, save to database)
-            var user = new
-            {
-                Id = Guid.NewGuid().ToString(),
+                Name = request.Name ?? "User",
                 Email = request.Email,
-                Name = request.Name ?? "User"
+                Password = request.Password
             };
 
-            // Generate JWT token
-            var token = GenerateJwtToken(user.Id, user.Email);
-            var refreshToken = GenerateRefreshToken();
+            var result = await _authService.RegisterAsync(registerDto);
 
             return Ok(new TokenResponse
             {
-                AccessToken = token,
-                RefreshToken = refreshToken,
-                TokenType = "Bearer",
-                ExpiresIn = 1800 // 30 minutes
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                TokenType = result.TokenType,
+                ExpiresIn = result.ExpiresIn
             });
+        }
+        catch (BusinessValidationException ex)
+        {
+            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = ex.Message, errors = ex.Errors } });
         }
         catch (Exception ex)
         {
@@ -69,30 +63,25 @@ public class AuthController : ControllerBase
     {
         try
         {
-            // Validate credentials (mock implementation)
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            var loginDto = new LoginRequestDto
             {
-                return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Email and password are required" } });
-            }
-
-            // Mock authentication
-            var user = new
-            {
-                Id = Guid.NewGuid().ToString(),
                 Email = request.Email,
-                Name = "Test User"
+                Password = request.Password
             };
 
-            var token = GenerateJwtToken(user.Id, user.Email);
-            var refreshToken = GenerateRefreshToken();
+            var result = await _authService.LoginAsync(loginDto);
 
             return Ok(new TokenResponse
             {
-                AccessToken = token,
-                RefreshToken = refreshToken,
-                TokenType = "Bearer",
-                ExpiresIn = 1800
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                TokenType = result.TokenType,
+                ExpiresIn = result.ExpiresIn
             });
+        }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { error = new { code = "UNAUTHORIZED", message = ex.Message } });
         }
         catch (Exception ex)
         {
@@ -130,17 +119,31 @@ public class AuthController : ControllerBase
     [HttpPost("google/exchange")]
     public async Task<ActionResult<TokenResponse>> ExchangeGoogleCode(GoogleCallbackRequest request)
     {
-        // Mock implementation
-        var token = GenerateJwtToken(Guid.NewGuid().ToString(), "user@gmail.com");
-        var refreshToken = GenerateRefreshToken();
-
-        return Ok(new TokenResponse
+        try
         {
-            AccessToken = token,
-            RefreshToken = refreshToken,
-            TokenType = "Bearer",
-            ExpiresIn = 1800
-        });
+            var googleAuthDto = new GoogleAuthRequestDto
+            {
+                GoogleToken = request.Code ?? string.Empty
+            };
+
+            var result = await _authService.GoogleAuthAsync(googleAuthDto);
+
+            return Ok(new TokenResponse
+            {
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                TokenType = "Bearer",
+                ExpiresIn = 1800
+            });
+        }
+        catch (NotImplementedException)
+        {
+            return StatusCode(501, new { error = new { code = "NOT_IMPLEMENTED", message = "Google authentication not yet implemented" } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -148,10 +151,23 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("logout")]
     [Authorize]
-    public async Task<ActionResult> Logout([FromBody] Dictionary<string, string> request)
+    public async Task<ActionResult> Logout()
     {
-        // In real implementation, revoke refresh tokens
-        return Ok(new { message = "Logged out successfully" });
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { error = new { code = "UNAUTHORIZED", message = "User not authenticated" } });
+            }
+
+            await _authService.LogoutAsync(userId);
+            return Ok(new { message = "Logged out successfully" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -180,63 +196,36 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<ActionResult<TokenResponse>> RefreshAccessToken([FromBody] Dictionary<string, string> request)
     {
-        if (!request.TryGetValue("refresh_token", out var refreshToken))
+        try
         {
-            return BadRequest(new { error = new { code = "MISSING_REFRESH_TOKEN", message = "Refresh token is required" } });
-        }
-
-        // Mock token refresh
-        var newToken = GenerateJwtToken(Guid.NewGuid().ToString(), "user@example.com");
-        var newRefreshToken = GenerateRefreshToken();
-
-        return Ok(new TokenResponse
-        {
-            AccessToken = newToken,
-            RefreshToken = newRefreshToken,
-            TokenType = "Bearer",
-            ExpiresIn = 1800
-        });
-    }
-
-    /// <summary>
-    /// List all users (admin only)
-    /// </summary>
-    [HttpGet("users")]
-    [Authorize]
-    public async Task<ActionResult> ListUsers(int page = 1, int pageSize = 20)
-    {
-        var users = new[]
-        {
-            new { id = "1", email = "user1@example.com", name = "User 1", created_at = DateTime.UtcNow.AddDays(-10) },
-            new { id = "2", email = "user2@example.com", name = "User 2", created_at = DateTime.UtcNow.AddDays(-5) }
-        };
-
-        return Ok(new { users, total = users.Length, page, page_size = pageSize });
-    }
-
-    private string GenerateJwtToken(string userId, string email)
-    {
-        var secretKey = _configuration["JwtSettings:SecretKey"] ?? "development-secret-please-change-in-production-youtube-rag-api-2024";
-        var key = Encoding.ASCII.GetBytes(secretKey);
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(new[]
+            if (!request.TryGetValue("refresh_token", out var refreshToken))
             {
-                new Claim(ClaimTypes.NameIdentifier, userId),
-                new Claim(ClaimTypes.Email, email)
-            }),
-            Expires = DateTime.UtcNow.AddMinutes(30),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        };
+                return BadRequest(new { error = new { code = "MISSING_REFRESH_TOKEN", message = "Refresh token is required" } });
+            }
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+            var refreshDto = new RefreshTokenRequestDto
+            {
+                RefreshToken = refreshToken
+            };
+
+            var result = await _authService.RefreshTokenAsync(refreshDto);
+
+            return Ok(new TokenResponse
+            {
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                TokenType = result.TokenType,
+                ExpiresIn = result.ExpiresIn
+            });
+        }
+        catch (UnauthorizedException ex)
+        {
+            return Unauthorized(new { error = new { code = "UNAUTHORIZED", message = ex.Message } });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
-    private string GenerateRefreshToken()
-    {
-        return Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-    }
 }
