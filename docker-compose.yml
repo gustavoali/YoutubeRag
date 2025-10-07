@@ -6,17 +6,17 @@ services:
     image: mysql:8.0
     container_name: youtube-rag-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: youtube_rag_local
-      MYSQL_USER: youtube_rag_user
-      MYSQL_PASSWORD: youtube_rag_password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-youtube_rag_local}
+      MYSQL_USER: ${MYSQL_USER:-youtube_rag_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-youtube_rag_password}
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,9 +29,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: youtube-rag-redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -44,14 +44,114 @@ services:
       - youtube-rag-network
     restart: unless-stopped
 
+  # YoutubeRag API Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-runtime}
+      args:
+        DOTNET_VERSION: 8.0
+    image: youtuberag:${VERSION:-latest}
+    container_name: youtube-rag-api
+    environment:
+      # ASP.NET Core settings
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+
+      # Database connection
+      ConnectionStrings__DefaultConnection: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-youtube_rag_local};User=${MYSQL_USER:-youtube_rag_user};Password=${MYSQL_PASSWORD:-youtube_rag_password};AllowPublicKeyRetrieval=True;"
+
+      # Redis connection
+      Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD:-}"
+
+      # JWT settings
+      JWT__Secret: ${JWT_SECRET:-YourSuperSecretKeyForDevelopmentOnly123456789!}
+      JWT__Issuer: ${JWT_ISSUER:-YoutubeRagAPI}
+      JWT__Audience: ${JWT_AUDIENCE:-YoutubeRagClient}
+      JWT__ExpirationInMinutes: ${JWT_EXPIRATION:-60}
+
+      # OpenAI settings (if using)
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+
+      # Application settings
+      Logging__LogLevel__Default: ${LOG_LEVEL:-Information}
+      Logging__LogLevel__Microsoft.AspNetCore: ${LOG_LEVEL_ASPNET:-Warning}
+
+      # CORS settings
+      CORS__AllowedOrigins: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    ports:
+      - "${API_PORT:-5000}:8080"
+    volumes:
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - youtube-rag-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Test Runner - For running integration tests
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: youtube-rag-test-runner
+    environment:
+      ASPNETCORE_ENVIRONMENT: Testing
+      ConnectionStrings__DefaultConnection: "Server=mysql;Port=3306;Database=youtube_rag_test;User=root;Password=${MYSQL_ROOT_PASSWORD:-rootpassword};AllowPublicKeyRetrieval=True;"
+      Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD:-}"
+      JWT__Secret: TestSecretKeyForJWTTokenGenerationMinimum256Bits!
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - youtube-rag-network
+    profiles:
+      - test
+    volumes:
+      - ./TestResults:/test-results
+    command: ["dotnet", "test", "--logger:trx", "--results-directory:/test-results"]
+
+  # Database Migration Runner
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+    container_name: youtube-rag-migration
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-youtube_rag_local};User=root;Password=${MYSQL_ROOT_PASSWORD:-rootpassword};AllowPublicKeyRetrieval=True;"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - youtube-rag-network
+    profiles:
+      - migration
+
   # Redis Commander - Optional Web UI for Redis (development only)
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: youtube-rag-redis-commander
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-}
+      - HTTP_USER=${REDIS_COMMANDER_USER:-admin}
+      - HTTP_PASSWORD=${REDIS_COMMANDER_PASSWORD:-admin}
     ports:
-      - "8081:8081"
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
     depends_on:
       redis:
         condition: service_healthy
@@ -65,21 +165,64 @@ services:
     image: adminer:latest
     container_name: youtube-rag-adminer
     ports:
-      - "8080:8080"
+      - "${ADMINER_PORT:-8080}:8080"
     depends_on:
       mysql:
         condition: service_healthy
     environment:
       ADMINER_DEFAULT_SERVER: mysql
+      ADMINER_DESIGN: pepa-linha
     networks:
       - youtube-rag-network
     profiles:
       - dev-tools
 
+  # Prometheus - Metrics collection (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: youtube-rag-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - youtube-rag-network
+    profiles:
+      - monitoring
+
+  # Grafana - Metrics visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: youtube-rag-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - youtube-rag-network
+    profiles:
+      - monitoring
+
 volumes:
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 networks:

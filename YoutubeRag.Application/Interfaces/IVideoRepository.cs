@@ -12,8 +12,9 @@ public interface IVideoRepository : IRepository<Video>
     /// Gets a video by its YouTube identifier
     /// </summary>
     /// <param name="youtubeId">The YouTube video identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The video if found; otherwise, null</returns>
-    Task<Video?> GetByYoutubeIdAsync(string youtubeId);
+    Task<Video?> GetByYouTubeIdAsync(string youtubeId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all videos for a specific user

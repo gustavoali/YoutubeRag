@@ -26,8 +26,15 @@ public class SearchControllerTests : IntegrationTestBase
 
     protected override async Task SeedTestData()
     {
+        // Note: This method runs BEFORE authentication in tests
+        // So we don't seed here - tests will seed their own data after authenticating
+        await Task.CompletedTask;
+    }
+
+    private async Task SeedSearchTestData()
+    {
         // Seed test videos with transcript for search testing
-        var userId = "test-user-id";
+        var userId = AuthenticatedUserId;
 
         var video1 = TestDataGenerator.GenerateVideo(userId, "search-video-1");
         video1.Title = "Introduction to Machine Learning";
@@ -115,6 +122,8 @@ public class SearchControllerTests : IntegrationTestBase
     {
         // Arrange
         await AuthenticateAsync();
+        await SeedSearchTestData();
+
         var searchQuery = new
         {
             query = "machine learning neural networks",
@@ -128,7 +137,7 @@ public class SearchControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("results").GetArrayLength().Should().BeGreaterThanOrEqualTo(0);
         result.GetProperty("query").GetString().Should().Be("machine learning neural networks");
@@ -196,7 +205,7 @@ public class SearchControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("results").GetArrayLength().Should().BeLessThanOrEqualTo(2);
     }
@@ -242,7 +251,7 @@ public class SearchControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("suggestions").GetArrayLength().Should().BeGreaterThanOrEqualTo(0);
     }
@@ -279,7 +288,7 @@ public class SearchControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("suggestions").GetArrayLength().Should().BeLessThanOrEqualTo(3);
     }
@@ -438,7 +447,7 @@ public class SearchControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("results").GetArrayLength().Should().Be(0);
         result.GetProperty("total_results").GetInt32().Should().Be(0);

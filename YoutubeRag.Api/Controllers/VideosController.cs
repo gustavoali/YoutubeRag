@@ -4,10 +4,14 @@ using YoutubeRag.Domain.Enums;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Application.DTOs.Video;
+using YoutubeRag.Application.DTOs.Progress;
 using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Api.Configuration;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
+using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -19,16 +23,31 @@ public class VideosController : ControllerBase
 {
     private readonly IVideoProcessingService _videoProcessingService;
     private readonly IVideoService _videoService;
+    private readonly IVideoIngestionService _videoIngestionService;
+    private readonly IJobRepository _jobRepository;
+    private readonly IVideoRepository _videoRepository;
+    private readonly IMemoryCache _cache;
     private readonly AppSettings _appSettings;
+    private readonly ILogger<VideosController> _logger;
 
     public VideosController(
         IVideoProcessingService videoProcessingService,
         IVideoService videoService,
-        IOptions<AppSettings> appSettings)
+        IVideoIngestionService videoIngestionService,
+        IJobRepository jobRepository,
+        IVideoRepository videoRepository,
+        IMemoryCache cache,
+        IOptions<AppSettings> appSettings,
+        ILogger<VideosController> logger)
     {
         _videoProcessingService = videoProcessingService;
         _videoService = videoService;
+        _videoIngestionService = videoIngestionService;
+        _jobRepository = jobRepository;
+        _videoRepository = videoRepository;
+        _cache = cache;
         _appSettings = appSettings.Value;
+        _logger = logger;
     }
     /// <summary>
     /// List user's videos with filtering and pagination
@@ -112,7 +131,7 @@ public class VideosController : ControllerBase
                 title = video.Title,
                 description = video.Description,
                 url = request.Url,
-                youtube_id = video.YoutubeId,
+                youtube_id = video.YouTubeId,
                 thumbnail_url = video.ThumbnailUrl,
                 status = video.Status.ToString(),
                 processing_progress = video.ProcessingProgress,
@@ -136,40 +155,189 @@ public class VideosController : ControllerBase
     /// <summary>
     /// Get detailed progress information for a video
     /// </summary>
+    /// <param name="videoId">The unique identifier of the video</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Video processing progress information</returns>
+    /// <response code="200">Progress information retrieved successfully</response>
+    /// <response code="404">Video not found or processing not started</response>
+    /// <response code="500">Internal server error</response>
     [HttpGet("{videoId}/progress")]
-    public async Task<ActionResult> GetVideoProgress(string videoId)
+    [ProducesResponseType(typeof(VideoProgressResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<VideoProgressResponse>> GetVideoProgress(
+        string videoId,
+        CancellationToken cancellationToken = default)
     {
+        var stopwatch = Stopwatch.StartNew();
+        var cacheKey = $"video_progress_{videoId}";
+
         try
         {
-            var progress = await _videoProcessingService.GetProcessingProgressAsync(videoId);
+            // Check cache first
+            if (_cache.TryGetValue(cacheKey, out VideoProgressResponse? cachedProgress))
+            {
+                _logger.LogDebug(
+                    "Cache hit for video progress. VideoId: {VideoId}, ElapsedMs: {ElapsedMs}",
+                    videoId,
+                    stopwatch.ElapsedMilliseconds);
 
-            return Ok(new {
-                video_id = progress.VideoId,
-                status = progress.Status.ToString(),
-                progress = progress.OverallProgress,
-                current_stage = progress.CurrentStage,
-                stages = progress.Stages.Select(stage => new {
-                    name = stage.Name,
-                    status = stage.Status,
-                    progress = stage.Progress,
-                    started_at = stage.StartedAt,
-                    completed_at = stage.CompletedAt,
-                    error_message = stage.ErrorMessage
-                }),
-                estimated_completion = progress.EstimatedCompletion,
-                error_message = progress.ErrorMessage,
-                mode = _appSettings.UseRealProcessing ? "real" : "mock"
-            });
+                return Ok(cachedProgress);
+            }
+
+            _logger.LogDebug(
+                "Cache miss for video progress. VideoId: {VideoId}, ElapsedMs: {ElapsedMs}",
+                videoId,
+                stopwatch.ElapsedMilliseconds);
+
+            // Query video to verify it exists
+            var video = await _videoRepository.GetByIdAsync(videoId);
+
+            if (video == null)
+            {
+                _logger.LogWarning(
+                    "Video not found. VideoId: {VideoId}, ElapsedMs: {ElapsedMs}",
+                    videoId,
+                    stopwatch.ElapsedMilliseconds);
+
+                return NotFound(new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "Video Not Found",
+                    Detail = "Video not found",
+                    Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+                    Extensions =
+                    {
+                        ["videoId"] = videoId,
+                        ["traceId"] = HttpContext.TraceIdentifier,
+                        ["timestamp"] = DateTime.UtcNow
+                    }
+                });
+            }
+
+            // Query latest job for the video
+            var job = await _jobRepository.GetLatestByVideoIdAsync(videoId);
+
+            if (job == null)
+            {
+                _logger.LogWarning(
+                    "Video exists but no processing job found. VideoId: {VideoId}, ElapsedMs: {ElapsedMs}",
+                    videoId,
+                    stopwatch.ElapsedMilliseconds);
+
+                return NotFound(new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "Processing Not Started",
+                    Detail = "Video exists but processing not started",
+                    Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+                    Extensions =
+                    {
+                        ["videoId"] = videoId,
+                        ["traceId"] = HttpContext.TraceIdentifier,
+                        ["timestamp"] = DateTime.UtcNow
+                    }
+                });
+            }
+
+            // Map Job entity to VideoProgressResponse DTO
+            var progressResponse = MapJobToProgressResponse(job, videoId);
+
+            // Cache the response for 5 seconds
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromSeconds(5));
+
+            _cache.Set(cacheKey, progressResponse, cacheOptions);
+
+            _logger.LogInformation(
+                "Video progress retrieved successfully. VideoId: {VideoId}, JobId: {JobId}, Status: {Status}, Progress: {Progress}, ElapsedMs: {ElapsedMs}",
+                videoId,
+                job.Id,
+                job.Status,
+                job.Progress,
+                stopwatch.ElapsedMilliseconds);
+
+            return Ok(progressResponse);
         }
         catch (Exception ex)
         {
-            return BadRequest(new {
-                error = new {
-                    code = "PROGRESS_ERROR",
-                    message = ex.Message
+            _logger.LogError(
+                ex,
+                "Error retrieving video progress. VideoId: {VideoId}, ElapsedMs: {ElapsedMs}",
+                videoId,
+                stopwatch.ElapsedMilliseconds);
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Internal Server Error",
+                Detail = "An error occurred while retrieving video progress",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                Extensions =
+                {
+                    ["videoId"] = videoId,
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
                 }
             });
         }
+    }
+
+    /// <summary>
+    /// Maps a Job entity to a VideoProgressResponse DTO
+    /// </summary>
+    /// <param name="job">The job entity</param>
+    /// <param name="videoId">The video identifier</param>
+    /// <returns>VideoProgressResponse DTO</returns>
+    private VideoProgressResponse MapJobToProgressResponse(Domain.Entities.Job job, string videoId)
+    {
+        // Calculate estimated completion time based on progress
+        DateTime? estimatedCompletion = null;
+        if (job.StartedAt.HasValue && job.Progress > 0 && job.Progress < 100)
+        {
+            var elapsedTime = DateTime.UtcNow - job.StartedAt.Value;
+            var estimatedTotalTime = elapsedTime.TotalSeconds / (job.Progress / 100.0);
+            estimatedCompletion = job.StartedAt.Value.AddSeconds(estimatedTotalTime);
+        }
+
+        // Determine current stage based on job status and progress
+        string currentStage = job.StatusMessage ?? DetermineCurrentStage(job);
+
+        return new VideoProgressResponse
+        {
+            VideoId = videoId,
+            JobId = job.Id,
+            Status = job.Status.ToString(),
+            ProgressPercentage = job.Progress,
+            CurrentStage = currentStage,
+            HangfireJobId = job.HangfireJobId,
+            StartedAt = job.StartedAt,
+            EstimatedCompletion = estimatedCompletion,
+            ErrorMessage = job.ErrorMessage,
+            UpdatedAt = job.UpdatedAt
+        };
+    }
+
+    /// <summary>
+    /// Determines the current processing stage based on job properties
+    /// </summary>
+    /// <param name="job">The job entity</param>
+    /// <returns>Current stage description</returns>
+    private static string DetermineCurrentStage(Domain.Entities.Job job)
+    {
+        return job.Status switch
+        {
+            JobStatus.Pending => "Queued for processing",
+            JobStatus.Running when job.Progress < 30 => "Extracting audio",
+            JobStatus.Running when job.Progress < 70 => "Transcribing audio",
+            JobStatus.Running when job.Progress < 90 => "Generating embeddings",
+            JobStatus.Running => "Finalizing",
+            JobStatus.Completed => "Completed",
+            JobStatus.Failed => "Failed",
+            JobStatus.Cancelled => "Cancelled",
+            JobStatus.Retrying => "Retrying after error",
+            _ => "Processing"
+        };
     }
 
     /// <summary>
@@ -180,6 +348,28 @@ public class VideosController : ControllerBase
     {
         try
         {
+            // Get the current user's ID from the authenticated context
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogDebug("GetVideo - Current user ID: {UserId}", userId);
+
+            // First get the basic video info to check ownership
+            var videoDto = await _videoService.GetByIdAsync(videoId);
+            if (videoDto == null)
+            {
+                return NotFound(new { error = new { code = "NOT_FOUND", message = "Video not found" } });
+            }
+
+            _logger.LogDebug("GetVideo - Checking authorization. Video UserId: {VideoUserId}, Current UserId: {CurrentUserId}",
+                videoDto.UserId, userId);
+
+            // Check if the current user owns the video
+            if (!string.IsNullOrEmpty(videoDto.UserId) && videoDto.UserId != userId)
+            {
+                _logger.LogWarning("GetVideo - Authorization denied. User {UserId} attempted to access video owned by {VideoUserId}",
+                    userId, videoDto.UserId);
+                return StatusCode(403, new { error = new { code = "FORBIDDEN", message = "You do not have permission to view this video" } });
+            }
+
             var video = await _videoService.GetDetailsAsync(videoId);
             return Ok(video);
         }
@@ -197,6 +387,7 @@ public class VideosController : ControllerBase
     /// Update video metadata
     /// </summary>
     [HttpPatch("{videoId}")]
+    [HttpPut("{videoId}")]
     public async Task<ActionResult> UpdateVideo(string videoId, [FromBody] UpdateVideoDto updateDto)
     {
         try
@@ -226,6 +417,28 @@ public class VideosController : ControllerBase
     {
         try
         {
+            // Get the current user's ID from the authenticated context
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogDebug("DeleteVideo - Current user ID: {UserId}", userId);
+
+            // Get the video to check ownership
+            var video = await _videoService.GetByIdAsync(videoId);
+            if (video == null)
+            {
+                return NotFound(new { error = new { code = "NOT_FOUND", message = "Video not found" } });
+            }
+
+            _logger.LogDebug("DeleteVideo - Checking authorization. Video UserId: {VideoUserId}, Current UserId: {CurrentUserId}",
+                video.UserId, userId);
+
+            // Check if the current user owns the video
+            if (!string.IsNullOrEmpty(video.UserId) && video.UserId != userId)
+            {
+                _logger.LogWarning("DeleteVideo - Authorization denied. User {UserId} attempted to delete video owned by {VideoUserId}",
+                    userId, video.UserId);
+                return StatusCode(403, new { error = new { code = "FORBIDDEN", message = "You do not have permission to delete this video" } });
+            }
+
             await _videoService.DeleteAsync(videoId);
             return Ok(new { message = "Video deleted successfully" });
         }
@@ -312,13 +525,145 @@ public class VideosController : ControllerBase
             }
         });
     }
-}
 
-public class VideoUrlRequest
-{
-    public string Url { get; set; } = string.Empty;
-    public string? Title { get; set; }
-    public string? Description { get; set; }
+    /// <summary>
+    /// Ingest a video from YouTube URL
+    /// </summary>
+    /// <response code="200">Video ingestion initiated successfully</response>
+    /// <response code="400">Validation error in request</response>
+    /// <response code="401">User not authenticated</response>
+    /// <response code="409">Video already exists</response>
+    /// <response code="500">Internal server error</response>
+    [HttpPost("ingest")]
+    [ProducesResponseType(typeof(VideoIngestionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<VideoIngestionResponse>> IngestVideo(
+        [FromBody] VideoUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ProblemDetails
+                {
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "Unauthorized",
+                    Detail = "User ID not found in authentication token",
+                    Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                    Extensions =
+                    {
+                        ["traceId"] = HttpContext.TraceIdentifier,
+                        ["timestamp"] = DateTime.UtcNow
+                    }
+                });
+            }
+
+            var requestDto = new VideoIngestionRequestDto(
+                Url: request.Url,
+                UserId: userId,
+                Title: request.Title,
+                Description: request.Description,
+                Priority: request.Priority
+            );
+
+            var response = await _videoIngestionService.IngestVideoFromUrlAsync(requestDto, cancellationToken);
+
+            return Ok(response);
+        }
+        catch (BusinessValidationException ex)
+        {
+            _logger.LogWarning(ex, "Validation failed for video ingestion request: {Url}", request.Url);
+
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Validation Error",
+                Detail = ex.Message,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+                Extensions =
+                {
+                    ["errors"] = ex.Errors,
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
+            });
+        }
+        catch (DuplicateResourceException ex)
+        {
+            _logger.LogInformation(ex, "Duplicate video detected: {ResourceId}", ex.ResourceId);
+
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Duplicate Resource",
+                Detail = $"Video already exists with ID: {ex.ResourceId}",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+                Extensions =
+                {
+                    ["resourceId"] = ex.ResourceId,
+                    ["resourceType"] = ex.ResourceType,
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
+            });
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database error during video ingestion: {Url}", request.Url);
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Database Error",
+                Detail = "Failed to save video to database. Please try again later.",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                Extensions =
+                {
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
+            });
+        }
+        catch (DatabaseException ex)
+        {
+            _logger.LogError(ex, "Database operation failed during video ingestion: {Url}", request.Url);
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Database Error",
+                Detail = "Failed to save video to database. Please try again later.",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                Extensions =
+                {
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during video ingestion: {Url}", request.Url);
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Internal Server Error",
+                Detail = "An unexpected error occurred. Please contact support.",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                Extensions =
+                {
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
+            });
+        }
+    }
 }
 
 public class ProcessingConfigRequest

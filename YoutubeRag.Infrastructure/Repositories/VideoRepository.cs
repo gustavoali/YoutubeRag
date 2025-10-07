@@ -23,7 +23,7 @@ public class VideoRepository : Repository<Video>, IVideoRepository
     }
 
     /// <inheritdoc />
-    public async Task<Video?> GetByYoutubeIdAsync(string youtubeId)
+    public async Task<Video?> GetByYouTubeIdAsync(string youtubeId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(youtubeId))
         {
@@ -33,7 +33,7 @@ public class VideoRepository : Repository<Video>, IVideoRepository
         try
         {
             return await _dbSet
-                .FirstOrDefaultAsync(v => v.YoutubeId == youtubeId);
+                .FirstOrDefaultAsync(v => v.YouTubeId == youtubeId, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -245,7 +245,7 @@ public class VideoRepository : Repository<Video>, IVideoRepository
         try
         {
             return await _dbSet
-                .AnyAsync(v => v.YoutubeId == youtubeId && v.UserId == userId);
+                .AnyAsync(v => v.YouTubeId == youtubeId && v.UserId == userId);
         }
         catch (Exception ex)
         {

@@ -1,0 +1,81 @@
+{
+  "test_videos": [
+    {
+      "id": 1,
+      "name": "Short English Tutorial",
+      "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      "youtube_id": "jNQXAC9IVRw",
+      "description": "Me at the zoo - First YouTube video ever (18 seconds)",
+      "expected_duration": "18s",
+      "language": "English",
+      "characteristics": "Very short, simple, publicly available, should work with YoutubeExplode",
+      "priority": 2
+    },
+    {
+      "id": 2,
+      "name": "Motivational Short",
+      "url": "https://www.youtube.com/watch?v=9bZkp7q19f0",
+      "youtube_id": "9bZkp7q19f0",
+      "description": "PSY - GANGNAM STYLE (Official Music Video) - 30 second sample",
+      "expected_duration": "~30s",
+      "language": "Korean/English",
+      "characteristics": "Popular music video, good for testing metadata extraction",
+      "priority": 1
+    },
+    {
+      "id": 3,
+      "name": "Tech Demo Short",
+      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "youtube_id": "dQw4w9WgXcQ",
+      "description": "Rick Astley - Never Gonna Give You Up (1 minute sample)",
+      "expected_duration": "~1min",
+      "language": "English",
+      "characteristics": "Classic video, good for testing 403 fallback scenarios",
+      "priority": 1
+    },
+    {
+      "id": 4,
+      "name": "Educational Content",
+      "url": "https://www.youtube.com/watch?v=yaqe1qesQ8c",
+      "youtube_id": "yaqe1qesQ8c",
+      "description": "Pixar Short Film - ~1.5 minutes",
+      "expected_duration": "~1.5min",
+      "language": "No dialogue (visual)",
+      "characteristics": "Short animated film, tests non-verbal content",
+      "priority": 2
+    },
+    {
+      "id": 5,
+      "name": "Spanish Content",
+      "url": "https://www.youtube.com/watch?v=kJQP7kiw5Fk",
+      "youtube_id": "kJQP7kiw5Fk",
+      "description": "Luis Fonsi - Despacito (2 minute sample)",
+      "expected_duration": "~2min",
+      "language": "Spanish",
+      "characteristics": "Spanish language, tests multi-language support, popular video",
+      "priority": 1
+    }
+  ],
+  "test_configuration": {
+    "base_url": "https://localhost:62787",
+    "api_version": "v1",
+    "max_timeout_per_video": 300,
+    "polling_interval": 10,
+    "health_check_endpoint": "/health",
+    "ingest_endpoint": "/api/v1/videos/ingest",
+    "progress_endpoint": "/api/v1/videos/{videoId}/progress",
+    "video_details_endpoint": "/api/v1/videos/{videoId}"
+  },
+  "expected_results": {
+    "min_successful_videos": 4,
+    "max_failures_allowed": 1,
+    "required_stages": [
+      "metadata_extraction",
+      "audio_extraction",
+      "transcription"
+    ],
+    "optional_stages": [
+      "embedding_generation"
+    ]
+  }
+}

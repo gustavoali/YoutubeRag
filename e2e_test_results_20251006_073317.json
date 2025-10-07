@@ -1,0 +1,98 @@
+﻿{
+    "Configuration":  {
+                          "BaseUrl":  "https://localhost:62787",
+                          "PollingInterval":  10,
+                          "MaxTimeout":  300
+                      },
+    "TestResults":  [
+                        {
+                            "FailureStage":  "Ingestion",
+                            "VideoNumber":  1,
+                            "Result":  "FAILED",
+                            "Duration":  0.074609,
+                            "Language":  "English",
+                            "Url":  "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+                            "YouTubeId":  "jNQXAC9IVRw",
+                            "Priority":  2,
+                            "Stages":  {
+
+                                       },
+                            "Name":  "Short English Tutorial",
+                            "StartTime":  "\/Date(1759746797254)\/",
+                            "ErrorMessage":  "Error en el servidor remoto: (401) No autorizado."
+                        },
+                        {
+                            "FailureStage":  "Ingestion",
+                            "VideoNumber":  2,
+                            "Result":  "FAILED",
+                            "Duration":  0.014797,
+                            "Language":  "Korean/English",
+                            "Url":  "https://www.youtube.com/watch?v=9bZkp7q19f0",
+                            "YouTubeId":  "9bZkp7q19f0",
+                            "Priority":  1,
+                            "Stages":  {
+
+                                       },
+                            "Name":  "Motivational Short",
+                            "StartTime":  "\/Date(1759746797336)\/",
+                            "ErrorMessage":  "Error en el servidor remoto: (401) No autorizado."
+                        },
+                        {
+                            "FailureStage":  "Ingestion",
+                            "VideoNumber":  3,
+                            "Result":  "FAILED",
+                            "Duration":  0.014698099999999999,
+                            "Language":  "English",
+                            "Url":  "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                            "YouTubeId":  "dQw4w9WgXcQ",
+                            "Priority":  1,
+                            "Stages":  {
+
+                                       },
+                            "Name":  "Tech Demo Short",
+                            "StartTime":  "\/Date(1759746797351)\/",
+                            "ErrorMessage":  "Error en el servidor remoto: (401) No autorizado."
+                        },
+                        {
+                            "FailureStage":  "Ingestion",
+                            "VideoNumber":  4,
+                            "Result":  "FAILED",
+                            "Duration":  0.013118699999999999,
+                            "Language":  "No dialogue (visual)",
+                            "Url":  "https://www.youtube.com/watch?v=yaqe1qesQ8c",
+                            "YouTubeId":  "yaqe1qesQ8c",
+                            "Priority":  2,
+                            "Stages":  {
+
+                                       },
+                            "Name":  "Educational Content",
+                            "StartTime":  "\/Date(1759746797366)\/",
+                            "ErrorMessage":  "Error en el servidor remoto: (401) No autorizado."
+                        },
+                        {
+                            "FailureStage":  "Ingestion",
+                            "VideoNumber":  5,
+                            "Result":  "FAILED",
+                            "Duration":  0.011566,
+                            "Language":  "Spanish",
+                            "Url":  "https://www.youtube.com/watch?v=kJQP7kiw5Fk",
+                            "YouTubeId":  "kJQP7kiw5Fk",
+                            "Priority":  1,
+                            "Stages":  {
+
+                                       },
+                            "Name":  "Spanish Content",
+                            "StartTime":  "\/Date(1759746797379)\/",
+                            "ErrorMessage":  "Error en el servidor remoto: (401) No autorizado."
+                        }
+                    ],
+    "ExecutionTime":  "\/Date(1759746796864)\/",
+    "Summary":  {
+                    "SuccessRate":  0,
+                    "TotalTests":  5,
+                    "Failed":  5,
+                    "Passed":  0
+                },
+    "TestSuite":  "YoutubeRag E2E - Video Ingestion Pipeline",
+    "TotalDuration":  0.5268187
+}

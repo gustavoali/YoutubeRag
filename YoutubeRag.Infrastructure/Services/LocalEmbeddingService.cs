@@ -1,197 +1,231 @@
-using YoutubeRag.Application.Interfaces;
 using Microsoft.Extensions.Logging;
-using System.Text;
-using System.Security.Cryptography;
+using System.Text.Json;
+using YoutubeRag.Application.Interfaces;
 
 namespace YoutubeRag.Infrastructure.Services;
 
+/// <summary>
+/// Local embedding service implementation for generating text embeddings
+/// For MVP, this uses mock embeddings. In production, integrate with ONNX or Python embedding models
+/// </summary>
 public class LocalEmbeddingService : IEmbeddingService
 {
     private readonly ILogger<LocalEmbeddingService> _logger;
+    private readonly Random _random;
+    private const int EMBEDDING_DIMENSION = 384; // Standard dimension for sentence-transformers/all-MiniLM-L6-v2
+    private const int MAX_BATCH_SIZE = 32;
 
     public LocalEmbeddingService(ILogger<LocalEmbeddingService> logger)
     {
         _logger = logger;
+        _random = new Random(42); // Fixed seed for reproducibility in MVP
     }
 
-    public async Task<float[]> GenerateEmbeddingAsync(string text)
+    /// <inheritdoc />
+    public async Task<float[]> GenerateEmbeddingAsync(string text, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Local Embeddings: Generating embedding for text of length {Length}", text.Length);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text, nameof(text));
 
-        await Task.Delay(50); // Simulate processing time
-
-        // Generate deterministic embedding based on text content
-        // This is a simplified approach - in production you'd use a real embedding model
-        var embedding = GenerateDeterministicEmbedding(text);
-
-        return embedding;
-    }
-
-    public async Task<List<float[]>> GenerateEmbeddingsAsync(List<string> texts)
-    {
-        _logger.LogInformation("Local Embeddings: Generating {Count} embeddings", texts.Count);
-
-        var embeddings = new List<float[]>();
-
-        foreach (var text in texts)
+        try
         {
-            var embedding = await GenerateEmbeddingAsync(text);
-            embeddings.Add(embedding);
+            _logger.LogDebug("Generating embedding for text of length {Length}", text.Length);
+
+            // For MVP: Generate deterministic mock embeddings based on text content
+            var embedding = GenerateMockEmbedding(text);
+
+            await Task.Delay(10, cancellationToken); // Simulate processing time
+
+            _logger.LogDebug("Successfully generated embedding of dimension {Dimension}", embedding.Length);
+            return embedding;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate embedding for text");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<List<(string segmentId, float[] embedding)>> GenerateEmbeddingsAsync(
+        List<(string segmentId, string text)> texts,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(texts, nameof(texts));
+
+        if (texts.Count == 0)
+        {
+            return new List<(string, float[])>();
         }
 
-        return embeddings;
+        _logger.LogInformation("Generating embeddings for {Count} texts", texts.Count);
+
+        var results = new List<(string segmentId, float[] embedding)>();
+        var batches = texts.Chunk(MAX_BATCH_SIZE);
+
+        foreach (var batch in batches)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var batchTasks = batch.Select(async item =>
+            {
+                try
+                {
+                    var embedding = await GenerateEmbeddingAsync(item.text, cancellationToken);
+                    return (item.segmentId, embedding);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate embedding for segment {SegmentId}", item.segmentId);
+                    // Return null embedding for failed items
+                    return (item.segmentId, Array.Empty<float>());
+                }
+            });
+
+            var batchResults = await Task.WhenAll(batchTasks);
+            results.AddRange(batchResults.Where(r => r.Item2.Length > 0));
+        }
+
+        _logger.LogInformation("Successfully generated {Count} embeddings", results.Count);
+        return results;
     }
 
-    public async Task<List<SearchResult>> SearchSimilarAsync(string query, int limit = 10, double threshold = 0.7)
+    /// <inheritdoc />
+    public Task<int> GetEmbeddingDimensionAsync()
     {
-        _logger.LogInformation("Local Embeddings: Searching for similar content to query: {Query}",
-            query.Substring(0, Math.Min(50, query.Length)));
+        return Task.FromResult(EMBEDDING_DIMENSION);
+    }
 
-        await Task.Delay(200); // Simulate search time
+    /// <inheritdoc />
+    public Task<bool> IsModelAvailableAsync()
+    {
+        // For MVP, always return true since we're using mock embeddings
+        // In production, check if the actual model is loaded and ready
+        return Task.FromResult(true);
+    }
 
-        // For local implementation, we'll use keyword-based similarity
-        // In production, you'd load embeddings from database and calculate cosine similarity
-        var mockResults = GenerateLocalSearchResults(query, limit, threshold);
+    /// <inheritdoc />
+    public float CalculateSimilarity(float[] embedding1, float[] embedding2)
+    {
+        ArgumentNullException.ThrowIfNull(embedding1, nameof(embedding1));
+        ArgumentNullException.ThrowIfNull(embedding2, nameof(embedding2));
 
-        var filteredResults = mockResults
-            .Where(r => r.Similarity >= threshold)
-            .OrderByDescending(r => r.Similarity)
-            .Take(limit)
+        if (embedding1.Length != embedding2.Length)
+        {
+            throw new ArgumentException("Embeddings must have the same dimension");
+        }
+
+        if (embedding1.Length == 0)
+        {
+            return 0f;
+        }
+
+        // Calculate cosine similarity
+        float dotProduct = 0f;
+        float norm1 = 0f;
+        float norm2 = 0f;
+
+        for (int i = 0; i < embedding1.Length; i++)
+        {
+            dotProduct += embedding1[i] * embedding2[i];
+            norm1 += embedding1[i] * embedding1[i];
+            norm2 += embedding2[i] * embedding2[i];
+        }
+
+        if (norm1 == 0f || norm2 == 0f)
+        {
+            return 0f;
+        }
+
+        return dotProduct / (MathF.Sqrt(norm1) * MathF.Sqrt(norm2));
+    }
+
+    /// <inheritdoc />
+    public List<(string id, float similarity)> FindMostSimilar(
+        float[] queryEmbedding,
+        List<(string id, float[] embedding)> candidateEmbeddings,
+        int topK = 10)
+    {
+        ArgumentNullException.ThrowIfNull(queryEmbedding, nameof(queryEmbedding));
+        ArgumentNullException.ThrowIfNull(candidateEmbeddings, nameof(candidateEmbeddings));
+
+        if (candidateEmbeddings.Count == 0)
+        {
+            return new List<(string, float)>();
+        }
+
+        var similarities = candidateEmbeddings
+            .Select(candidate => new
+            {
+                candidate.id,
+                similarity = CalculateSimilarity(queryEmbedding, candidate.embedding)
+            })
+            .OrderByDescending(x => x.similarity)
+            .Take(topK)
+            .Select(x => (x.id, x.similarity))
             .ToList();
 
-        _logger.LogInformation("Local Embeddings: Found {Count} similar segments above threshold {Threshold}",
-            filteredResults.Count, threshold);
-
-        return filteredResults;
+        return similarities;
     }
 
-    public async Task<bool> IndexTranscriptSegmentsAsync(string videoId, List<string> segments)
+    /// <summary>
+    /// Generates a mock embedding for MVP purposes
+    /// In production, replace with actual embedding model inference
+    /// </summary>
+    private float[] GenerateMockEmbedding(string text)
     {
-        _logger.LogInformation("Local Embeddings: Indexing {Count} transcript segments for video {VideoId}",
-            segments.Count, videoId);
+        // Create deterministic embedding based on text content
+        var embedding = new float[EMBEDDING_DIMENSION];
 
-        // In a real implementation, you would:
-        // 1. Generate embeddings for each segment
-        // 2. Store them in a vector database or file system
-        // 3. Create an index for fast similarity search
+        // Use text hash for deterministic generation
+        var hash = text.GetHashCode();
+        var localRandom = new Random(hash);
 
-        await Task.Delay(segments.Count * 20); // Simulate processing time
-
-        return true;
-    }
-
-    public async Task<bool> DeleteVideoEmbeddingsAsync(string videoId)
-    {
-        _logger.LogInformation("Local Embeddings: Deleting embeddings for video {VideoId}", videoId);
-
-        await Task.Delay(100);
-
-        return true;
-    }
-
-    private float[] GenerateDeterministicEmbedding(string text)
-    {
-        // Generate a deterministic 384-dimensional embedding based on text content
-        // This is simplified - real embeddings would use trained models
-        const int dimensions = 384; // Typical size for sentence transformers
-        var embedding = new float[dimensions];
-
-        using var sha256 = SHA256.Create();
-        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
-
-        // Use hash to seed random number generator for consistency
-        var seed = BitConverter.ToInt32(hash, 0);
-        var random = new Random(seed);
-
-        // Generate embedding with some structure based on text features
-        var words = text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var wordCount = words.Length;
-        var textLength = text.Length;
-
-        for (int i = 0; i < dimensions; i++)
+        // Generate normalized random values
+        float sum = 0f;
+        for (int i = 0; i < EMBEDDING_DIMENSION; i++)
         {
-            var value = (float)random.NextDouble() * 2.0f - 1.0f; // -1 to 1
-
-            // Add some structure based on text characteristics
-            if (i < 10) // First 10 dimensions based on length
-            {
-                value += (float)Math.Sin(textLength * 0.01) * 0.3f;
-            }
-            else if (i < 20) // Next 10 based on word count
-            {
-                value += (float)Math.Cos(wordCount * 0.1) * 0.3f;
-            }
-            else if (i < 50) // Add some keyword-based features
-            {
-                foreach (var word in words.Take(5))
-                {
-                    value += (float)Math.Sin(word.GetHashCode() * 0.0001) * 0.1f;
-                }
-            }
-
-            embedding[i] = value;
+            embedding[i] = (float)(localRandom.NextDouble() * 2 - 1); // Range [-1, 1]
+            sum += embedding[i] * embedding[i];
         }
 
-        // Normalize to unit vector
-        var magnitude = Math.Sqrt(embedding.Sum(x => x * x));
-        if (magnitude > 0)
+        // Normalize to unit vector (common practice for embeddings)
+        if (sum > 0)
         {
-            for (int i = 0; i < dimensions; i++)
+            var norm = MathF.Sqrt(sum);
+            for (int i = 0; i < EMBEDDING_DIMENSION; i++)
             {
-                embedding[i] = (float)(embedding[i] / magnitude);
+                embedding[i] /= norm;
             }
         }
 
         return embedding;
     }
 
-    private List<SearchResult> GenerateLocalSearchResults(string query, int limit, double threshold)
+    /// <summary>
+    /// Serializes an embedding vector to JSON string for storage
+    /// </summary>
+    public static string SerializeEmbedding(float[] embedding)
     {
-        var queryWords = query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return JsonSerializer.Serialize(embedding);
+    }
 
-        var mockSegments = new[]
+    /// <summary>
+    /// Deserializes an embedding vector from JSON string
+    /// </summary>
+    public static float[]? DeserializeEmbedding(string? embeddingJson)
+    {
+        if (string.IsNullOrWhiteSpace(embeddingJson))
         {
-            new { Text = "Introduction to machine learning algorithms and their applications", Video = "AI Basics" },
-            new { Text = "Deep learning neural networks for image recognition", Video = "Deep Learning Course" },
-            new { Text = "Natural language processing with transformers and attention mechanisms", Video = "NLP Tutorial" },
-            new { Text = "Computer vision techniques for object detection", Video = "CV Workshop" },
-            new { Text = "Reinforcement learning in game playing and robotics", Video = "RL Fundamentals" },
-            new { Text = "Data preprocessing and feature engineering best practices", Video = "Data Science 101" },
-            new { Text = "Statistical analysis and hypothesis testing methods", Video = "Statistics Course" },
-            new { Text = "Python programming for data analysis and visualization", Video = "Python Tutorial" },
-            new { Text = "Database design and SQL query optimization", Video = "Database Course" },
-            new { Text = "Web development with modern JavaScript frameworks", Video = "Web Dev Bootcamp" }
-        };
-
-        var results = new List<SearchResult>();
-
-        foreach (var segment in mockSegments)
-        {
-            var segmentWords = segment.Text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var matchingWords = queryWords.Intersect(segmentWords).Count();
-            var similarity = (double)matchingWords / Math.Max(queryWords.Length, segmentWords.Length);
-
-            // Add some randomness based on text content for more realistic results
-            var textHash = segment.Text.GetHashCode();
-            var randomFactor = (textHash % 100) / 1000.0; // Small random component
-            similarity += randomFactor;
-
-            if (similarity >= threshold)
-            {
-                results.Add(new SearchResult
-                {
-                    VideoId = $"video_{Math.Abs(segment.Video.GetHashCode()) % 1000}",
-                    SegmentId = $"seg_{Math.Abs(segment.Text.GetHashCode()) % 10000}",
-                    Text = segment.Text,
-                    StartTime = (textHash % 300) + 10, // Random start time
-                    EndTime = (textHash % 300) + 20, // Random end time
-                    Similarity = Math.Min(similarity, 1.0),
-                    VideoTitle = segment.Video,
-                    VideoThumbnail = $"https://img.youtube.com/vi/example_{Math.Abs(textHash) % 100}/maxresdefault.jpg"
-                });
-            }
+            return null;
         }
 
-        return results;
+        try
+        {
+            return JsonSerializer.Deserialize<float[]>(embeddingJson);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

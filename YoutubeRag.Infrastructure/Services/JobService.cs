@@ -26,7 +26,7 @@ public class JobService : IJobService
             var job = new Job
             {
                 Id = Guid.NewGuid().ToString(),
-                JobType = jobType,
+                Type = Enum.Parse<JobType>(jobType),
                 UserId = userId,
                 VideoId = videoId,
                 Status = JobStatus.Pending,
@@ -183,7 +183,7 @@ public class JobService : IJobService
 
             await UpdateJobStatusAsync(jobId, JobStatus.Running, "Job execution started");
 
-            _logger.LogInformation("Starting execution of job {JobId} of type {JobType}", jobId, job.JobType);
+            _logger.LogInformation("Starting execution of job {JobId} of type {JobType}", jobId, job.Type);
 
             // Simulate job execution based on job type
             var result = await ExecuteJobByTypeAsync(job);
@@ -219,7 +219,7 @@ public class JobService : IJobService
     {
         var results = new Dictionary<string, object>();
 
-        switch (job.JobType)
+        switch (job.Type.ToString())
         {
             case "ProcessVideoFromUrl":
                 results["message"] = "Video processing from URL initiated";
@@ -242,7 +242,7 @@ public class JobService : IJobService
                 break;
 
             default:
-                throw new NotSupportedException($"Job type not supported: {job.JobType}");
+                throw new NotSupportedException($"Job type not supported: {job.Type}");
         }
 
         // Simulate some processing time

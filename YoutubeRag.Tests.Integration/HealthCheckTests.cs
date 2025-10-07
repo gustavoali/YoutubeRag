@@ -53,8 +53,19 @@ public class HealthCheckTests : IntegrationTestBase
         // Act
         var response = await Client.GetAsync("/swagger");
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Assert - Swagger might return a redirect or OK
+        response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.MovedPermanently, HttpStatusCode.Found);
+
+        // If it's a redirect, follow it
+        if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400)
+        {
+            var location = response.Headers.Location?.ToString();
+            if (!string.IsNullOrEmpty(location))
+            {
+                var redirectResponse = await Client.GetAsync(location);
+                redirectResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            }
+        }
     }
 
     /// <summary>

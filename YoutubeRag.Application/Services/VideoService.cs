@@ -67,9 +67,9 @@ public class VideoService : IVideoService
 
         return new PaginatedResultDto<VideoListDto>(
             videoDtos,
-            totalCount,
             page,
-            pageSize
+            pageSize,
+            totalCount
         );
     }
 

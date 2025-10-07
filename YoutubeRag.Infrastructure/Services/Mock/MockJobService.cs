@@ -24,7 +24,7 @@ public class MockJobService : IJobService
         var job = new Job
         {
             Id = Guid.NewGuid().ToString(),
-            JobType = jobType,
+            Type = Enum.Parse<JobType>(jobType),
             UserId = userId,
             VideoId = videoId,
             Status = JobStatus.Pending,
@@ -148,7 +148,7 @@ public class MockJobService : IJobService
 
             var results = new Dictionary<string, object>
             {
-                ["message"] = $"Mock execution of {job.JobType} completed",
+                ["message"] = $"Mock execution of {job.Type} completed",
                 ["videoId"] = job.VideoId ?? "",
                 ["executionTime"] = (DateTime.UtcNow - startTime).TotalMilliseconds
             };

@@ -26,8 +26,15 @@ public class UsersControllerTests : IntegrationTestBase
 
     protected override async Task SeedTestData()
     {
+        // Note: This method runs BEFORE authentication in tests
+        // So we don't seed here - tests will seed their own data after authenticating
+        await Task.CompletedTask;
+    }
+
+    private async Task SeedUserTestData()
+    {
         // Seed test data for user statistics
-        var userId = "test-user-id";
+        var userId = AuthenticatedUserId;
 
         // Add some videos for the user
         var videos = new List<Video>
@@ -81,7 +88,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("email").GetString().Should().Be(email);
         result.GetProperty("name").GetString().Should().NotBeNullOrEmpty();
@@ -131,7 +138,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("name").GetString().Should().Be("Updated User Name");
     }
@@ -188,6 +195,7 @@ public class UsersControllerTests : IntegrationTestBase
     {
         // Arrange
         await AuthenticateAsync();
+        await SeedUserTestData();
 
         // Act
         var response = await Client.GetAsync($"{_baseUrl}/me/stats");
@@ -196,7 +204,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         // Check for expected statistics properties
         result.GetProperty("total_videos").GetInt32().Should().BeGreaterThanOrEqualTo(0);
@@ -237,7 +245,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("period").GetProperty("from").GetString().Should().NotBeNullOrEmpty();
         result.GetProperty("period").GetProperty("to").GetString().Should().NotBeNullOrEmpty();
@@ -293,7 +301,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("language").GetString().Should().Be("es");
         result.GetProperty("theme").GetString().Should().Be("dark");
@@ -319,7 +327,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("activities").GetArrayLength().Should().BeGreaterThanOrEqualTo(0);
     }
@@ -340,7 +348,7 @@ public class UsersControllerTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        dynamic result = JsonSerializer.Deserialize<JsonElement>(content);
+        var result = JsonSerializer.Deserialize<JsonElement>(content);
 
         result.GetProperty("page").GetInt32().Should().Be(1);
         result.GetProperty("pageSize").GetInt32().Should().Be(5);
@@ -362,6 +370,7 @@ public class UsersControllerTests : IntegrationTestBase
 
         var deleteRequest = new
         {
+            reason = "Test deletion",
             password = "Test123!",
             confirmation = "DELETE"
         };
@@ -384,8 +393,8 @@ public class UsersControllerTests : IntegrationTestBase
 
         var deleteRequest = new
         {
+            reason = "", // Empty reason should trigger BadRequest
             password = "Test123!"
-            // Missing confirmation
         };
 
         // Act

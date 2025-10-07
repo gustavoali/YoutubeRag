@@ -19,6 +19,8 @@ public class VideoMappingProfile : Profile
         CreateMap<Video, VideoDto>()
             .ForMember(dest => dest.Status,
                 opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.UserId,
+                opt => opt.MapFrom(src => src.UserId))
             .ForMember(dest => dest.TranscriptSegmentCount,
                 opt => opt.MapFrom(src => src.TranscriptSegments != null ? src.TranscriptSegments.Count : 0))
             .ForMember(dest => dest.JobCount,
@@ -36,7 +38,7 @@ public class VideoMappingProfile : Profile
             .ForMember(dest => dest.HasTranscripts,
                 opt => opt.MapFrom(src => src.TranscriptSegments != null && src.TranscriptSegments.Any()))
             .ForMember(dest => dest.IsYouTubeVideo,
-                opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.YoutubeId)));
+                opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.YouTubeId)));
 
         CreateMap<Video, VideoDetailsDto>()
             .ForMember(dest => dest.Status,
@@ -63,7 +65,7 @@ public class VideoMappingProfile : Profile
             .ForMember(dest => dest.ProcessingLog, opt => opt.Ignore())
             .ForMember(dest => dest.ErrorMessage, opt => opt.Ignore())
             .ForMember(dest => dest.ProcessingProgress, opt => opt.MapFrom(src => 0))
-            .ForMember(dest => dest.YoutubeId, opt => opt.Ignore()) // Will be extracted from URL
+            .ForMember(dest => dest.YouTubeId, opt => opt.Ignore()) // Will be extracted from URL
             .ForMember(dest => dest.OriginalUrl, opt => opt.MapFrom(src => src.YoutubeUrl))
             .ForMember(dest => dest.Duration, opt => opt.Ignore())
             .ForMember(dest => dest.ViewCount, opt => opt.Ignore())

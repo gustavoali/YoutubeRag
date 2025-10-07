@@ -1,333 +1,326 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Infrastructure.Data;
+using YoutubeRag.Infrastructure.Services;
 
 namespace YoutubeRag.Infrastructure.Repositories;
 
 /// <summary>
-/// Repository implementation for TranscriptSegment entity operations
+/// Repository implementation for managing transcript segments
 /// </summary>
-public class TranscriptSegmentRepository : Repository<TranscriptSegment>, ITranscriptSegmentRepository
+public class TranscriptSegmentRepository : ITranscriptSegmentRepository
 {
-    /// <summary>
-    /// Initializes a new instance of the TranscriptSegmentRepository class
-    /// </summary>
-    /// <param name="context">The database context</param>
-    /// <param name="logger">The logger instance</param>
-    public TranscriptSegmentRepository(ApplicationDbContext context, ILogger<TranscriptSegmentRepository> logger)
-        : base(context, logger)
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<TranscriptSegmentRepository> _logger;
+
+    public TranscriptSegmentRepository(
+        ApplicationDbContext context,
+        ILogger<TranscriptSegmentRepository> logger)
     {
+        _context = context;
+        _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> GetByVideoIdAsync(string videoId)
+    public async Task<TranscriptSegment?> GetByIdAsync(string segmentId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(segmentId, nameof(segmentId));
 
-        try
-        {
-            return await _dbSet
-                .Where(ts => ts.VideoId == videoId)
-                .OrderBy(ts => ts.SegmentIndex)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving transcript segments for video ID {VideoId}", videoId);
-            throw;
-        }
+        return await _context.TranscriptSegments
+            .Include(s => s.Video)
+            .FirstOrDefaultAsync(s => s.Id == segmentId, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> SearchByTextAsync(string searchText)
+    public async Task<List<TranscriptSegment>> GetByVideoIdAsync(string videoId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(searchText))
-        {
-            throw new ArgumentException("Search text cannot be null or empty", nameof(searchText));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
 
-        try
-        {
-            var lowerSearchText = searchText.ToLower();
-            return await _dbSet
-                .Where(ts => ts.Text.ToLower().Contains(lowerSearchText))
-                .Include(ts => ts.Video)
-                .OrderBy(ts => ts.VideoId)
-                .ThenBy(ts => ts.SegmentIndex)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error searching transcript segments with text {SearchText}", searchText);
-            throw;
-        }
+        return await _context.TranscriptSegments
+            .Where(s => s.VideoId == videoId)
+            .OrderBy(s => s.SegmentIndex)
+            .ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> SearchByTextInVideoAsync(string videoId, string searchText)
+    public async Task<List<TranscriptSegment>> GetSegmentsWithoutEmbeddingsAsync(
+        string videoId,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
 
-        if (string.IsNullOrWhiteSpace(searchText))
-        {
-            throw new ArgumentException("Search text cannot be null or empty", nameof(searchText));
-        }
-
-        try
-        {
-            var lowerSearchText = searchText.ToLower();
-            return await _dbSet
-                .Where(ts => ts.VideoId == videoId && ts.Text.ToLower().Contains(lowerSearchText))
-                .OrderBy(ts => ts.SegmentIndex)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error searching transcript segments in video {VideoId} with text {SearchText}",
-                videoId, searchText);
-            throw;
-        }
+        return await _context.TranscriptSegments
+            .Where(s => s.VideoId == videoId &&
+                       (s.EmbeddingVector == null || s.EmbeddingVector == ""))
+            .OrderBy(s => s.SegmentIndex)
+            .ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> GetByVideoIdAndTimeRangeAsync(string videoId, double startTime, double endTime)
+    public async Task<List<TranscriptSegment>> GetSegmentsWithEmbeddingsAsync(
+        string videoId,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
 
-        if (startTime < 0)
-        {
-            throw new ArgumentException("Start time cannot be negative", nameof(startTime));
-        }
-
-        if (endTime < startTime)
-        {
-            throw new ArgumentException("End time must be after start time", nameof(endTime));
-        }
-
-        try
-        {
-            return await _dbSet
-                .Where(ts => ts.VideoId == videoId &&
-                            ts.StartTime >= startTime &&
-                            ts.EndTime <= endTime)
-                .OrderBy(ts => ts.SegmentIndex)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving transcript segments for video {VideoId} between {StartTime} and {EndTime}",
-                videoId, startTime, endTime);
-            throw;
-        }
+        return await _context.TranscriptSegments
+            .Where(s => s.VideoId == videoId &&
+                       s.EmbeddingVector != null &&
+                       s.EmbeddingVector != "")
+            .OrderBy(s => s.SegmentIndex)
+            .ToListAsync(cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> GetByVideoIdAndLanguageAsync(string videoId, string language)
+    public async Task<int> UpdateEmbeddingsAsync(
+        List<(string segmentId, float[] embedding)> embeddings,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(videoId))
+        ArgumentNullException.ThrowIfNull(embeddings, nameof(embeddings));
+
+        if (!embeddings.Any())
         {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
+            return 0;
         }
 
-        if (string.IsNullOrWhiteSpace(language))
-        {
-            throw new ArgumentException("Language cannot be null or empty", nameof(language));
-        }
+        _logger.LogDebug("Updating embeddings for {Count} segments", embeddings.Count);
 
-        try
-        {
-            return await _dbSet
-                .Where(ts => ts.VideoId == videoId && ts.Language == language)
-                .OrderBy(ts => ts.SegmentIndex)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving transcript segments for video {VideoId} in language {Language}",
-                videoId, language);
-            throw;
-        }
-    }
+        var segmentIds = embeddings.Select(e => e.segmentId).ToList();
+        var segments = await _context.TranscriptSegments
+            .Where(s => segmentIds.Contains(s.Id))
+            .ToListAsync(cancellationToken);
 
-    /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> GetPaginatedByVideoIdAsync(string videoId, int pageNumber, int pageSize)
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
-        }
+        var embeddingDict = embeddings.ToDictionary(e => e.segmentId, e => e.embedding);
+        int updatedCount = 0;
 
-        if (pageNumber < 1)
+        foreach (var segment in segments)
         {
-            throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
-        }
-
-        if (pageSize < 1 || pageSize > 100)
-        {
-            throw new ArgumentException("Page size must be between 1 and 100", nameof(pageSize));
-        }
-
-        try
-        {
-            return await _dbSet
-                .Where(ts => ts.VideoId == videoId)
-                .OrderBy(ts => ts.SegmentIndex)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving paginated transcript segments for video {VideoId}, page {PageNumber}, size {PageSize}",
-                videoId, pageNumber, pageSize);
-            throw;
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<TranscriptSegment?> GetByVideoIdAndIndexAsync(string videoId, int segmentIndex)
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
-        }
-
-        if (segmentIndex < 0)
-        {
-            throw new ArgumentException("Segment index cannot be negative", nameof(segmentIndex));
-        }
-
-        try
-        {
-            return await _dbSet
-                .FirstOrDefaultAsync(ts => ts.VideoId == videoId && ts.SegmentIndex == segmentIndex);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving transcript segment for video {VideoId} at index {SegmentIndex}",
-                videoId, segmentIndex);
-            throw;
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<int> DeleteByVideoIdAsync(string videoId)
-    {
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
-        }
-
-        try
-        {
-            var segments = await _dbSet
-                .Where(ts => ts.VideoId == videoId)
-                .ToListAsync();
-
-            if (segments.Any())
+            if (embeddingDict.TryGetValue(segment.Id, out var embedding))
             {
-                _dbSet.RemoveRange(segments);
+                segment.EmbeddingVector = LocalEmbeddingService.SerializeEmbedding(embedding);
+                segment.UpdatedAt = DateTime.UtcNow;
+                updatedCount++;
             }
+        }
 
-            return segments.Count;
-        }
-        catch (Exception ex)
+        if (updatedCount > 0)
         {
-            _logger.LogError(ex, "Error deleting transcript segments for video {VideoId}", videoId);
-            throw;
+            await _context.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Successfully updated embeddings for {Count} segments", updatedCount);
         }
+
+        return updatedCount;
     }
 
     /// <inheritdoc />
-    public async Task<double> GetVideoDurationAsync(string videoId)
+    public async Task<bool> UpdateEmbeddingAsync(
+        string segmentId,
+        float[] embedding,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(videoId))
+        ArgumentException.ThrowIfNullOrWhiteSpace(segmentId, nameof(segmentId));
+        ArgumentNullException.ThrowIfNull(embedding, nameof(embedding));
+
+        var segment = await _context.TranscriptSegments
+            .FirstOrDefaultAsync(s => s.Id == segmentId, cancellationToken);
+
+        if (segment == null)
         {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
+            _logger.LogWarning("Segment {SegmentId} not found for embedding update", segmentId);
+            return false;
         }
 
-        try
-        {
-            var lastSegment = await _dbSet
-                .Where(ts => ts.VideoId == videoId)
-                .OrderByDescending(ts => ts.EndTime)
-                .FirstOrDefaultAsync();
+        segment.EmbeddingVector = LocalEmbeddingService.SerializeEmbedding(embedding);
+        segment.UpdatedAt = DateTime.UtcNow;
 
-            return lastSegment?.EndTime ?? 0;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting video duration for video {VideoId}", videoId);
-            throw;
-        }
+        await _context.SaveChangesAsync(cancellationToken);
+        _logger.LogDebug("Updated embedding for segment {SegmentId}", segmentId);
+
+        return true;
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> SearchBySimilarityAsync(float[] embedding, int limit = 10, float threshold = 0.7f)
+    public async Task<TranscriptSegment> AddAsync(TranscriptSegment segment, CancellationToken cancellationToken = default)
     {
-        if (embedding == null || embedding.Length == 0)
+        ArgumentNullException.ThrowIfNull(segment, nameof(segment));
+
+        if (string.IsNullOrWhiteSpace(segment.Id))
         {
-            throw new ArgumentException("Embedding cannot be null or empty", nameof(embedding));
+            segment.Id = Guid.NewGuid().ToString();
         }
 
-        if (limit < 1)
-        {
-            throw new ArgumentException("Limit must be greater than 0", nameof(limit));
-        }
+        segment.CreatedAt = DateTime.UtcNow;
+        segment.UpdatedAt = DateTime.UtcNow;
 
-        if (threshold < 0 || threshold > 1)
-        {
-            throw new ArgumentException("Threshold must be between 0 and 1", nameof(threshold));
-        }
+        _context.TranscriptSegments.Add(segment);
+        await _context.SaveChangesAsync(cancellationToken);
 
-        try
-        {
-            // Note: This is a placeholder implementation
-            // In a real scenario, you would use a vector database or implement cosine similarity
-            // For now, returning segments that have embeddings
-            return await _dbSet
-                .Where(ts => ts.EmbeddingVector != null)
-                .Take(limit)
-                .Include(ts => ts.Video)
-                .ToListAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error searching transcript segments by similarity");
-            throw;
-        }
+        _logger.LogDebug("Added transcript segment {SegmentId} for video {VideoId}",
+            segment.Id, segment.VideoId);
+
+        return segment;
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<TranscriptSegment>> GetWithEmbeddingsByVideoIdAsync(string videoId)
+    public async Task<List<TranscriptSegment>> AddRangeAsync(
+        List<TranscriptSegment> segments,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(videoId))
+        ArgumentNullException.ThrowIfNull(segments, nameof(segments));
+
+        if (!segments.Any())
         {
-            throw new ArgumentException("Video ID cannot be null or empty", nameof(videoId));
+            return segments;
         }
 
-        try
+        var now = DateTime.UtcNow;
+        foreach (var segment in segments)
         {
-            return await _dbSet
-                .Where(ts => ts.VideoId == videoId && ts.EmbeddingVector != null)
-                .OrderBy(ts => ts.SegmentIndex)
-                .ToListAsync();
+            if (string.IsNullOrWhiteSpace(segment.Id))
+            {
+                segment.Id = Guid.NewGuid().ToString();
+            }
+            segment.CreatedAt = now;
+            segment.UpdatedAt = now;
         }
-        catch (Exception ex)
+
+        _context.TranscriptSegments.AddRange(segments);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Added {Count} transcript segments", segments.Count);
+
+        return segments;
+    }
+
+    /// <inheritdoc />
+    public async Task<TranscriptSegment> UpdateAsync(TranscriptSegment segment, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(segment, nameof(segment));
+
+        segment.UpdatedAt = DateTime.UtcNow;
+        _context.TranscriptSegments.Update(segment);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogDebug("Updated transcript segment {SegmentId}", segment.Id);
+
+        return segment;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> DeleteByVideoIdAsync(string videoId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
+
+        var segments = await _context.TranscriptSegments
+            .Where(s => s.VideoId == videoId)
+            .ToListAsync(cancellationToken);
+
+        if (!segments.Any())
         {
-            _logger.LogError(ex, "Error retrieving transcript segments with embeddings for video {VideoId}", videoId);
-            throw;
+            return 0;
         }
+
+        _context.TranscriptSegments.RemoveRange(segments);
+        var deletedCount = await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted {Count} transcript segments for video {VideoId}",
+            segments.Count, videoId);
+
+        return segments.Count;
+    }
+
+    /// <inheritdoc />
+    public async Task<List<TranscriptSegment>> GetByTimeRangeAsync(
+        string videoId,
+        double startTime,
+        double endTime,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
+
+        return await _context.TranscriptSegments
+            .Where(s => s.VideoId == videoId &&
+                       s.StartTime >= startTime &&
+                       s.EndTime <= endTime)
+            .OrderBy(s => s.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<TranscriptSegment>> SearchByTextAsync(
+        string? videoId,
+        string searchText,
+        int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(searchText, nameof(searchText));
+
+        var query = _context.TranscriptSegments.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(videoId))
+        {
+            query = query.Where(s => s.VideoId == videoId);
+        }
+
+        // Use EF.Functions.Like for case-insensitive search
+        query = query.Where(s => EF.Functions.Like(s.Text, $"%{searchText}%"));
+
+        return await query
+            .OrderBy(s => s.VideoId)
+            .ThenBy(s => s.SegmentIndex)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> GetCountByVideoIdAsync(string videoId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
+
+        return await _context.TranscriptSegments
+            .CountAsync(s => s.VideoId == videoId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> GetEmbeddingCountByVideoIdAsync(string videoId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(videoId, nameof(videoId));
+
+        return await _context.TranscriptSegments
+            .CountAsync(s => s.VideoId == videoId &&
+                           s.EmbeddingVector != null &&
+                           s.EmbeddingVector != "", cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<TranscriptSegment>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.TranscriptSegments
+            .OrderBy(s => s.VideoId)
+            .ThenBy(s => s.SegmentIndex)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<TranscriptSegment>> FindAsync(
+        System.Linq.Expressions.Expression<Func<TranscriptSegment, bool>> predicate,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(predicate, nameof(predicate));
+
+        return await _context.TranscriptSegments
+            .Where(predicate)
+            .OrderBy(s => s.VideoId)
+            .ThenBy(s => s.SegmentIndex)
+            .ToListAsync(cancellationToken);
     }
 }

@@ -1,4 +1,5 @@
 using YoutubeRag.Application.Interfaces;
+using YoutubeRag.Application.DTOs.Transcription;
 using YoutubeRag.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -136,5 +137,71 @@ public class MockTranscriptionService : ITranscriptionService
         {
             "auto", "en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "hi", "tr", "pl", "nl", "sv", "da", "no", "fi"
         };
+    }
+
+    public async Task<TranscriptionResultDto> TranscribeAudioAsync(TranscriptionRequestDto request, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Mock: Transcribing audio file: {FilePath} for video: {VideoId}", request.AudioFilePath, request.VideoId);
+
+        await Task.Delay(3000, cancellationToken); // Simulate transcription time
+
+        var mockSegments = new List<TranscriptSegmentDto>
+        {
+            new TranscriptSegmentDto
+            {
+                StartTime = 0.0,
+                EndTime = 5.0,
+                Text = "Welcome to this mock YouTube video transcription.",
+                Confidence = 0.95,
+                Speaker = null
+            },
+            new TranscriptSegmentDto
+            {
+                StartTime = 5.0,
+                EndTime = 12.0,
+                Text = "Today we will be exploring the fascinating world of artificial intelligence and machine learning.",
+                Confidence = 0.93,
+                Speaker = null
+            },
+            new TranscriptSegmentDto
+            {
+                StartTime = 12.0,
+                EndTime = 20.0,
+                Text = "This technology has revolutionized how we process information and understand natural language.",
+                Confidence = 0.91,
+                Speaker = null
+            },
+            new TranscriptSegmentDto
+            {
+                StartTime = 20.0,
+                EndTime = 28.0,
+                Text = "Thank you for watching this demonstration of our YouTube RAG system.",
+                Confidence = 0.96,
+                Speaker = null
+            }
+        };
+
+        return new TranscriptionResultDto
+        {
+            VideoId = request.VideoId,
+            Segments = mockSegments,
+            Duration = TimeSpan.FromSeconds(28),
+            Language = request.Language == "auto" ? "en" : request.Language,
+            Confidence = 0.94
+        };
+    }
+
+    public Task<bool> IsWhisperAvailableAsync()
+    {
+        _logger.LogInformation("Mock: Checking if Whisper is available");
+        // Mock service always returns true
+        return Task.FromResult(true);
+    }
+
+    public Task<string> GetWhisperVersionAsync()
+    {
+        _logger.LogInformation("Mock: Getting Whisper version");
+        // Return a mock version
+        return Task.FromResult("Mock Whisper v1.0.0");
     }
 }

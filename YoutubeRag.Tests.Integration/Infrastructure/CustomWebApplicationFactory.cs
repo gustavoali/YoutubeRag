@@ -4,7 +4,10 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using YoutubeRag.Infrastructure.Data;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Infrastructure.Services.Mock;
 using System.Data.Common;
 
 namespace YoutubeRag.Tests.Integration.Infrastructure;
@@ -14,8 +17,21 @@ namespace YoutubeRag.Tests.Integration.Infrastructure;
 /// </summary>
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
+    // Use a unique database name to avoid conflicts between tests
+    private static int _databaseCounter = 0;
+    private readonly string _databaseName;
+
+    public CustomWebApplicationFactory()
+    {
+        // Create a unique database name for each factory instance
+        _databaseName = $"InMemoryDb_{Interlocked.Increment(ref _databaseCounter)}_{Guid.NewGuid()}";
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Set environment to Testing to use appsettings.Testing.json
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureTestServices(services =>
         {
             // Remove the existing DbContext registration
@@ -36,10 +52,21 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 services.Remove(dbConnectionDescriptor);
             }
 
-            // Add in-memory database for testing
+            // Replace background job service with mock since Hangfire is disabled
+            var backgroundJobServiceDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IBackgroundJobService));
+
+            if (backgroundJobServiceDescriptor != null)
+            {
+                services.Remove(backgroundJobServiceDescriptor);
+            }
+            services.AddScoped<IBackgroundJobService, MockBackgroundJobService>();
+
+            // Add in-memory database for testing with unique database name
             services.AddDbContext<ApplicationDbContext>(options =>
             {
-                options.UseInMemoryDatabase("InMemoryDbForTesting");
+                options.UseInMemoryDatabase(_databaseName);
+                options.EnableSensitiveDataLogging();
             });
 
             // Build the service provider
@@ -66,8 +93,6 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 }
             }
         });
-
-        builder.UseEnvironment("Testing");
     }
 
     private void SeedDatabase(ApplicationDbContext context)

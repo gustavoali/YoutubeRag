@@ -64,10 +64,10 @@ public class TranscriptSegmentMappingProfile : Profile
 
     private static string? GenerateYouTubeTimestampUrl(TranscriptSegment segment)
     {
-        if (segment.Video == null || string.IsNullOrEmpty(segment.Video.YoutubeId))
+        if (segment.Video == null || string.IsNullOrEmpty(segment.Video.YouTubeId))
             return null;
 
         var timestamp = (int)segment.StartTime;
-        return $"https://www.youtube.com/watch?v={segment.Video.YoutubeId}&t={timestamp}s";
+        return $"https://www.youtube.com/watch?v={segment.Video.YouTubeId}&t={timestamp}s";
     }
 }

@@ -17,6 +17,7 @@ public abstract class IntegrationTestBase : IClassFixture<CustomWebApplicationFa
     protected readonly HttpClient Client;
     protected IServiceScope Scope = null!;
     protected ApplicationDbContext DbContext = null!;
+    protected string? AuthenticatedUserId { get; private set; }
 
     protected IntegrationTestBase(CustomWebApplicationFactory<Program> factory)
     {
@@ -62,11 +63,18 @@ public abstract class IntegrationTestBase : IClassFixture<CustomWebApplicationFa
     /// </summary>
     protected virtual async Task ClearDatabase()
     {
-        // Clear all entities
-        DbContext.Users.RemoveRange(DbContext.Users);
-        DbContext.Videos.RemoveRange(DbContext.Videos);
-        DbContext.Jobs.RemoveRange(DbContext.Jobs);
-        DbContext.TranscriptSegments.RemoveRange(DbContext.TranscriptSegments);
+        // Clear all entities - load them first to avoid tracking issues
+        var refreshTokens = DbContext.RefreshTokens.ToList();
+        var users = DbContext.Users.ToList();
+        var videos = DbContext.Videos.ToList();
+        var jobs = DbContext.Jobs.ToList();
+        var segments = DbContext.TranscriptSegments.ToList();
+
+        DbContext.RefreshTokens.RemoveRange(refreshTokens);
+        DbContext.Users.RemoveRange(users);
+        DbContext.Videos.RemoveRange(videos);
+        DbContext.Jobs.RemoveRange(jobs);
+        DbContext.TranscriptSegments.RemoveRange(segments);
 
         await DbContext.SaveChangesAsync();
     }
@@ -85,8 +93,9 @@ public abstract class IntegrationTestBase : IClassFixture<CustomWebApplicationFa
     /// </summary>
     protected async Task<string> AuthenticateAsync(string email = "test@example.com", string password = "Test123!")
     {
-        // First register the user
-        var authService = Scope.ServiceProvider.GetRequiredService<IAuthService>();
+        // Use a separate scope for authentication to avoid DbContext tracking conflicts
+        using var authScope = Factory.Services.CreateScope();
+        var authService = authScope.ServiceProvider.GetRequiredService<IAuthService>();
 
         try
         {
@@ -113,6 +122,9 @@ public abstract class IntegrationTestBase : IClassFixture<CustomWebApplicationFa
         };
 
         var tokenResponse = await authService.LoginAsync(loginDto);
+
+        // Store the authenticated user ID for use in tests
+        AuthenticatedUserId = tokenResponse.User?.Id;
 
         // Set the authorization header
         Client.DefaultRequestHeaders.Authorization =

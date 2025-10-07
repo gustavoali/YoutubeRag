@@ -43,9 +43,39 @@ public class AuthService : IAuthService
         var users = await _unitOfWork.Users.FindAsync(u => u.Email == loginDto.Email);
         var user = users.FirstOrDefault();
 
-        if (user == null || !VerifyPassword(loginDto.Password, user.PasswordHash))
+        if (user == null)
         {
-            _logger.LogWarning("Invalid login attempt for email: {Email}", loginDto.Email);
+            _logger.LogWarning("Invalid login attempt for email: {Email} - User not found", loginDto.Email);
+            throw new UnauthorizedException("Invalid email or password");
+        }
+
+        // Check if account is locked
+        if (user.LockoutEndDate.HasValue && user.LockoutEndDate.Value > DateTime.UtcNow)
+        {
+            var remainingTime = user.LockoutEndDate.Value - DateTime.UtcNow;
+            _logger.LogWarning("Login attempt for locked account: {Email}. Lockout ends in {Minutes} minutes",
+                loginDto.Email, remainingTime.TotalMinutes);
+            throw new UnauthorizedException(
+                $"Account is locked due to multiple failed login attempts. Try again in {Math.Ceiling(remainingTime.TotalMinutes)} minutes.");
+        }
+
+        // Verify password
+        if (!VerifyPassword(loginDto.Password, user.PasswordHash))
+        {
+            // Increment failed login attempts
+            user.FailedLoginAttempts++;
+
+            // Lock account after 5 failed attempts
+            if (user.FailedLoginAttempts >= 5)
+            {
+                user.LockoutEndDate = DateTime.UtcNow.AddMinutes(15);
+                _logger.LogWarning("Account locked after 5 failed attempts: {Email}", loginDto.Email);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogWarning("Invalid login attempt for email: {Email} - Wrong password. Attempt {Attempts}/5",
+                loginDto.Email, user.FailedLoginAttempts);
             throw new UnauthorizedException("Invalid email or password");
         }
 
@@ -54,6 +84,12 @@ public class AuthService : IAuthService
             _logger.LogWarning("Login attempt for inactive user: {UserId}", user.Id);
             throw new UnauthorizedException("User account is inactive");
         }
+
+        // Reset failed login attempts on successful login
+        user.FailedLoginAttempts = 0;
+        user.LockoutEndDate = null;
+        user.LastLoginAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
 
         var (accessToken, expiresAt) = GenerateAccessToken(user);
         var refreshToken = await GenerateRefreshTokenAsync(user.Id);

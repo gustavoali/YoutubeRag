@@ -3,93 +3,167 @@ using YoutubeRag.Domain.Entities;
 namespace YoutubeRag.Application.Interfaces;
 
 /// <summary>
-/// Repository interface for TranscriptSegment entity operations
+/// Repository interface for managing transcript segments
 /// </summary>
-public interface ITranscriptSegmentRepository : IRepository<TranscriptSegment>
+public interface ITranscriptSegmentRepository
 {
     /// <summary>
-    /// Gets all transcript segments for a specific video
+    /// Gets a transcript segment by ID
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <returns>A collection of transcript segments ordered by segment index</returns>
-    Task<IEnumerable<TranscriptSegment>> GetByVideoIdAsync(string videoId);
+    /// <param name="segmentId">The segment ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The transcript segment or null if not found</returns>
+    Task<TranscriptSegment?> GetByIdAsync(string segmentId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Searches transcript segments by text content
+    /// Gets all transcript segments for a video
     /// </summary>
-    /// <param name="searchText">The text to search for in transcript content</param>
-    /// <returns>A collection of matching transcript segments</returns>
-    Task<IEnumerable<TranscriptSegment>> SearchByTextAsync(string searchText);
+    /// <param name="videoId">The video ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of transcript segments</returns>
+    Task<List<TranscriptSegment>> GetByVideoIdAsync(string videoId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Searches transcript segments by text within a specific video
+    /// Gets segments without embeddings for a specific video
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <param name="searchText">The text to search for in transcript content</param>
-    /// <returns>A collection of matching transcript segments from the specified video</returns>
-    Task<IEnumerable<TranscriptSegment>> SearchByTextInVideoAsync(string videoId, string searchText);
+    /// <param name="videoId">The video ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of segments without embeddings</returns>
+    Task<List<TranscriptSegment>> GetSegmentsWithoutEmbeddingsAsync(
+        string videoId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets transcript segments for a video within a time range
+    /// Gets segments with embeddings for a specific video
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <param name="startTime">The start time in seconds</param>
-    /// <param name="endTime">The end time in seconds</param>
-    /// <returns>A collection of transcript segments within the time range</returns>
-    Task<IEnumerable<TranscriptSegment>> GetByVideoIdAndTimeRangeAsync(string videoId, double startTime, double endTime);
+    /// <param name="videoId">The video ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of segments with embeddings</returns>
+    Task<List<TranscriptSegment>> GetSegmentsWithEmbeddingsAsync(
+        string videoId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets transcript segments by language
+    /// Updates embeddings for multiple segments
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <param name="language">The language code (e.g., "en", "es")</param>
-    /// <returns>A collection of transcript segments in the specified language</returns>
-    Task<IEnumerable<TranscriptSegment>> GetByVideoIdAndLanguageAsync(string videoId, string language);
+    /// <param name="embeddings">List of segment IDs and their embeddings</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Number of segments updated</returns>
+    Task<int> UpdateEmbeddingsAsync(
+        List<(string segmentId, float[] embedding)> embeddings,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets paginated transcript segments for a video
+    /// Updates a single segment's embedding
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <param name="pageNumber">The page number (1-based)</param>
-    /// <param name="pageSize">The number of items per page</param>
-    /// <returns>A collection of paginated transcript segments</returns>
-    Task<IEnumerable<TranscriptSegment>> GetPaginatedByVideoIdAsync(string videoId, int pageNumber, int pageSize);
+    /// <param name="segmentId">The segment ID</param>
+    /// <param name="embedding">The embedding vector</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if updated successfully</returns>
+    Task<bool> UpdateEmbeddingAsync(
+        string segmentId,
+        float[] embedding,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a specific segment by video ID and segment index
+    /// Adds a single transcript segment
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <param name="segmentIndex">The segment index</param>
-    /// <returns>The transcript segment if found; otherwise, null</returns>
-    Task<TranscriptSegment?> GetByVideoIdAndIndexAsync(string videoId, int segmentIndex);
+    /// <param name="segment">The segment to add</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The added segment</returns>
+    Task<TranscriptSegment> AddAsync(TranscriptSegment segment, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes all transcript segments for a video
+    /// Adds multiple transcript segments
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <returns>The number of deleted segments</returns>
-    Task<int> DeleteByVideoIdAsync(string videoId);
+    /// <param name="segments">The segments to add</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The added segments</returns>
+    Task<List<TranscriptSegment>> AddRangeAsync(
+        List<TranscriptSegment> segments,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the total duration of a video based on its transcript segments
+    /// Updates a transcript segment
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <returns>The total duration in seconds</returns>
-    Task<double> GetVideoDurationAsync(string videoId);
+    /// <param name="segment">The segment to update</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The updated segment</returns>
+    Task<TranscriptSegment> UpdateAsync(TranscriptSegment segment, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Searches for similar segments using embedding similarity
+    /// Deletes all segments for a video
     /// </summary>
-    /// <param name="embedding">The embedding vector to compare against</param>
-    /// <param name="limit">Maximum number of results to return</param>
-    /// <param name="threshold">Similarity threshold (0-1)</param>
-    /// <returns>A collection of similar transcript segments</returns>
-    Task<IEnumerable<TranscriptSegment>> SearchBySimilarityAsync(float[] embedding, int limit = 10, float threshold = 0.7f);
+    /// <param name="videoId">The video ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Number of segments deleted</returns>
+    Task<int> DeleteByVideoIdAsync(string videoId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets transcript segments that have embeddings
+    /// Gets segments by time range for a video
     /// </summary>
-    /// <param name="videoId">The video's unique identifier</param>
-    /// <returns>A collection of transcript segments with embeddings</returns>
-    Task<IEnumerable<TranscriptSegment>> GetWithEmbeddingsByVideoIdAsync(string videoId);
+    /// <param name="videoId">The video ID</param>
+    /// <param name="startTime">Start time in seconds</param>
+    /// <param name="endTime">End time in seconds</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Segments within the time range</returns>
+    Task<List<TranscriptSegment>> GetByTimeRangeAsync(
+        string videoId,
+        double startTime,
+        double endTime,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches segments by text content
+    /// </summary>
+    /// <param name="videoId">The video ID (optional)</param>
+    /// <param name="searchText">Text to search for</param>
+    /// <param name="limit">Maximum number of results</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Matching segments</returns>
+    Task<List<TranscriptSegment>> SearchByTextAsync(
+        string? videoId,
+        string searchText,
+        int limit = 50,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the total count of segments for a video
+    /// </summary>
+    /// <param name="videoId">The video ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Total count of segments</returns>
+    Task<int> GetCountByVideoIdAsync(string videoId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the count of segments with embeddings for a video
+    /// </summary>
+    /// <param name="videoId">The video ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Count of segments with embeddings</returns>
+    Task<int> GetEmbeddingCountByVideoIdAsync(string videoId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves changes to the database
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Number of entities affected</returns>
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all transcript segments (generic repository compatibility)
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>All transcript segments</returns>
+    Task<List<TranscriptSegment>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Finds transcript segments by predicate (generic repository compatibility)
+    /// </summary>
+    /// <param name="predicate">The filter predicate</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Matching segments</returns>
+    Task<List<TranscriptSegment>> FindAsync(
+        System.Linq.Expressions.Expression<Func<TranscriptSegment, bool>> predicate,
+        CancellationToken cancellationToken = default);
 }

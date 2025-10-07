@@ -60,8 +60,8 @@ public class VideoProcessingService : IVideoProcessingService
                 Id = Guid.NewGuid().ToString(),
                 Title = title ?? videoInfo.Title,
                 Description = description ?? videoInfo.Description,
-                YoutubeId = videoInfo.Id,
-                YoutubeUrl = url,
+                YouTubeId = videoInfo.Id,
+                Url = url,
                 OriginalUrl = url,
                 ThumbnailUrl = videoInfo.ThumbnailUrl,
                 Duration = videoInfo.Duration,
@@ -280,9 +280,9 @@ public class VideoProcessingService : IVideoProcessingService
             await context.SaveChangesAsync();
             await UpdateVideoProgressScoped(context, video, 80, "Processing embeddings...");
 
-            // Generate embeddings
-            var segmentTexts = segments.Select(s => s.Text).ToList();
-            await embeddingService.IndexTranscriptSegmentsAsync(videoId, segmentTexts);
+            // Generate embeddings - TODO: Use EmbeddingJobProcessor instead
+            // var segmentTexts = segments.Select(s => s.Text).ToList();
+            // await embeddingService.IndexTranscriptSegmentsAsync(videoId, segmentTexts);
 
             // Complete processing
             video.Status = VideoStatus.Completed;

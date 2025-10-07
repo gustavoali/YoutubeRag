@@ -1,19 +1,9 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace YoutubeRag.Domain.Entities;
 
 public class User : BaseEntity
 {
-    [Required]
-    [StringLength(100)]
     public string Name { get; set; } = string.Empty;
-
-    [Required]
-    [EmailAddress]
-    [StringLength(255)]
     public string Email { get; set; } = string.Empty;
-
-    [Required]
     public string PasswordHash { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
@@ -29,6 +19,10 @@ public class User : BaseEntity
     public string? Avatar { get; set; }
     public string? Bio { get; set; }
     public DateTime? LastLoginAt { get; set; }
+
+    // Account Security
+    public int FailedLoginAttempts { get; set; } = 0;
+    public DateTime? LockoutEndDate { get; set; }
 
     // Navigation Properties
     public virtual ICollection<Video> Videos { get; set; } = new List<Video>();

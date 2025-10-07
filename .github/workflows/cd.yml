@@ -1,0 +1,343 @@
+# CD Pipeline - Continuous Deployment
+# Triggers on push to master (production) and develop (staging)
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ master, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_IMAGE_NAME: ${{ github.repository }}
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  # Job 1: Build and Push Docker Image
+  build-docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Log in to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 4: Extract metadata
+      - name: Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+
+      # Step 5: Build and push Docker image
+      - name: Build and Push Docker Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            DOTNET_VERSION=${{ env.DOTNET_VERSION }}
+
+      # Step 6: Run Trivy vulnerability scanner
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail the build, but report issues
+
+      # Step 7: Upload Trivy results to GitHub Security
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Job 2: Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://staging.youtuberag.example.com
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup kubectl
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      # Step 3: Configure kubectl (example for different cloud providers)
+      - name: Configure kubectl
+        run: |
+          # For Azure AKS:
+          # az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+          # az aks get-credentials --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
+
+          # For AWS EKS:
+          # aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+          # For GCP GKE:
+          # echo ${{ secrets.GCP_SA_KEY }} | base64 -d > ${HOME}/gcloud-service-key.json
+          # gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+          # gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} --zone ${{ secrets.GCP_ZONE }} --project ${{ secrets.GCP_PROJECT }}
+
+          echo "kubectl configuration would be set up here"
+
+      # Step 4: Deploy using Helm
+      - name: Deploy with Helm
+        run: |
+          # Install or upgrade Helm release
+          helm upgrade --install youtuberag-staging ./helm-chart \
+            --namespace staging \
+            --create-namespace \
+            --set image.repository=${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }} \
+            --set image.tag=${{ needs.build-docker.outputs.image-tag }} \
+            --set ingress.enabled=true \
+            --set ingress.host=staging.youtuberag.example.com \
+            --set database.host=${{ secrets.STAGING_DB_HOST }} \
+            --set database.password=${{ secrets.STAGING_DB_PASSWORD }} \
+            --set redis.host=${{ secrets.STAGING_REDIS_HOST }} \
+            --set jwt.secret=${{ secrets.STAGING_JWT_SECRET }} \
+            --wait \
+            --timeout 10m
+        continue-on-error: true  # For now, as Helm chart doesn't exist yet
+
+      # Step 5: Run smoke tests
+      - name: Run Smoke Tests
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+
+          # Run basic health check
+          STAGING_URL="https://staging.youtuberag.example.com"
+
+          echo "Running smoke tests against $STAGING_URL"
+
+          # Health check endpoint
+          curl -f -X GET "$STAGING_URL/health" || exit 1
+
+          # API version endpoint
+          curl -f -X GET "$STAGING_URL/api/version" || exit 1
+
+          echo "Smoke tests passed successfully"
+        continue-on-error: true  # For now, as deployment doesn't exist yet
+
+      # Step 6: Notify deployment status
+      - name: Notify Deployment Status
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Staging deployment ${{ job.status }} for commit ${{ github.sha }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        continue-on-error: true
+
+  # Job 3: Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-docker, deploy-staging]
+    if: github.ref == 'refs/heads/master' || github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://youtuberag.example.com
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Create deployment
+      - name: Create GitHub Deployment
+        id: deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              required_contexts: [],
+              auto_merge: false,
+              description: 'Production deployment'
+            });
+            return deployment.data.id;
+
+      # Step 3: Setup kubectl
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      # Step 4: Configure kubectl for production
+      - name: Configure kubectl
+        run: |
+          # Production cluster configuration
+          echo "Production kubectl configuration would be set up here"
+
+      # Step 5: Blue-Green Deployment
+      - name: Blue-Green Deployment
+        run: |
+          # Perform blue-green deployment
+          echo "Performing blue-green deployment..."
+
+          # Deploy to green environment
+          helm upgrade --install youtuberag-green ./helm-chart \
+            --namespace production \
+            --create-namespace \
+            --set image.repository=${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }} \
+            --set image.tag=${{ needs.build-docker.outputs.image-tag }} \
+            --set ingress.enabled=false \
+            --set database.host=${{ secrets.PROD_DB_HOST }} \
+            --set database.password=${{ secrets.PROD_DB_PASSWORD }} \
+            --set redis.host=${{ secrets.PROD_REDIS_HOST }} \
+            --set jwt.secret=${{ secrets.PROD_JWT_SECRET }} \
+            --wait \
+            --timeout 10m
+
+          # Run health checks on green environment
+          echo "Running health checks on green environment..."
+          # kubectl exec -n production deployment/youtuberag-green -- curl -f http://localhost/health
+
+          # Switch traffic to green
+          echo "Switching traffic to green environment..."
+          # kubectl patch service youtuberag -n production -p '{"spec":{"selector":{"version":"green"}}}'
+
+          # Wait and monitor
+          sleep 60
+
+          # If everything is stable, remove blue environment
+          echo "Deployment successful, cleaning up old version..."
+          # helm uninstall youtuberag-blue -n production || true
+        continue-on-error: true  # For now, as Helm chart doesn't exist yet
+
+      # Step 6: Run production smoke tests
+      - name: Run Production Smoke Tests
+        run: |
+          PROD_URL="https://youtuberag.example.com"
+
+          echo "Running smoke tests against $PROD_URL"
+
+          # Health check
+          curl -f -X GET "$PROD_URL/health" || exit 1
+
+          # API endpoints
+          curl -f -X GET "$PROD_URL/api/version" || exit 1
+
+          echo "Production smoke tests passed"
+        continue-on-error: true
+
+      # Step 7: Update deployment status
+      - name: Update Deployment Status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: '${{ job.status }}',
+              environment_url: 'https://youtuberag.example.com',
+              description: 'Deployment ${{ job.status }}'
+            });
+
+      # Step 8: Notify production deployment
+      - name: Notify Production Deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'PRODUCTION deployment ${{ job.status }} for commit ${{ github.sha }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          mention: 'channel'
+          if_mention: failure
+        continue-on-error: true
+
+  # Job 4: Rollback (Manual Trigger)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && failure()
+    needs: [deploy-staging, deploy-production]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Rollback Deployment
+        run: |
+          echo "Rolling back to previous version..."
+
+          # For Kubernetes/Helm:
+          # helm rollback youtuberag -n production
+
+          # For AWS ECS:
+          # aws ecs update-service --cluster prod-cluster --service youtuberag --force-new-deployment
+
+          # For Azure App Service:
+          # az webapp deployment slot swap --resource-group rg --name youtuberag --slot staging --target-slot production
+
+          echo "Rollback initiated"
+
+      - name: Notify Rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: 'warning'
+          text: 'ROLLBACK initiated for production deployment'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          mention: 'channel'

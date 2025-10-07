@@ -1,5 +1,13 @@
 # YoutubeRag.NET - Intelligent YouTube Video Search & Analysis
 
+[![CI Pipeline](https://github.com/yourusername/youtube-rag-net/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/youtube-rag-net/actions/workflows/ci.yml)
+[![CD Pipeline](https://github.com/yourusername/youtube-rag-net/actions/workflows/cd.yml/badge.svg)](https://github.com/yourusername/youtube-rag-net/actions/workflows/cd.yml)
+[![Security Scan](https://github.com/yourusername/youtube-rag-net/actions/workflows/security.yml/badge.svg)](https://github.com/yourusername/youtube-rag-net/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/yourusername/youtube-rag-net/branch/master/graph/badge.svg)](https://codecov.io/gh/yourusername/youtube-rag-net)
+[![.NET Version](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 A powerful RAG (Retrieval-Augmented Generation) system for YouTube video transcriptions with semantic search capabilities. Built with .NET 8 and designed to run completely locally without external API costs.
 
 ## Features
@@ -255,6 +263,87 @@ dotnet build
 | Local | Whisper Small | 15-25 minutes | Free |
 | Cloud | OpenAI API | 3-5 minutes | ~$0.06 |
 
+## CI/CD Pipeline
+
+This project includes comprehensive CI/CD pipelines using GitHub Actions.
+
+### Continuous Integration (CI)
+
+The CI pipeline runs on every push and pull request to `develop` and `master` branches:
+
+- **Build & Test**: Compiles all projects and runs integration tests
+- **Code Coverage**: Generates coverage reports with 80% threshold requirement
+- **Code Quality**: Runs .NET analyzers and code formatting checks
+- **Security Scanning**: Checks for vulnerable NuGet packages
+- **Service Containers**: Tests run with real MySQL and Redis containers
+
+### Continuous Deployment (CD)
+
+The CD pipeline automatically deploys to different environments:
+
+- **Staging**: Automatic deployment on push to `develop`
+- **Production**: Automatic deployment on push to `master`
+- **Blue-Green Deployment**: Zero-downtime deployments to production
+- **Rollback**: Automatic rollback capability on deployment failure
+
+### Security Scanning
+
+Daily security scans and on every push:
+
+- **CodeQL Analysis**: Static code analysis for security vulnerabilities
+- **Dependency Scanning**: OWASP Dependency Check and NuGet vulnerability scanning
+- **Container Scanning**: Trivy and Grype scanning for Docker images
+- **Secret Scanning**: GitLeaks and TruffleHog for credential detection
+- **License Compliance**: Automated license checking for dependencies
+
+### Running CI/CD Locally
+
+Test the pipelines locally using [act](https://github.com/nektos/act):
+
+```bash
+# Install act
+# Windows: choco install act-cli
+# macOS: brew install act
+# Linux: curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+# Run CI pipeline locally
+act -W .github/workflows/ci.yml
+
+# Run specific job
+act -W .github/workflows/ci.yml -j build-and-test
+
+# Run with secrets
+act -W .github/workflows/cd.yml --secret-file .secrets
+```
+
+### Docker Build & Test
+
+Build and test the application using Docker:
+
+```bash
+# Build the Docker image
+docker build -t youtuberag:latest .
+
+# Run with docker-compose
+docker-compose up -d
+
+# Run tests in Docker
+docker-compose --profile test up test-runner
+
+# Run database migrations
+docker-compose --profile migration up migration
+
+# Access monitoring tools (optional)
+docker-compose --profile monitoring up -d
+```
+
+### Pipeline Status
+
+View the current status of all pipelines:
+- [CI Pipeline](https://github.com/yourusername/youtube-rag-net/actions/workflows/ci.yml)
+- [CD Pipeline](https://github.com/yourusername/youtube-rag-net/actions/workflows/cd.yml)
+- [Security Scanning](https://github.com/yourusername/youtube-rag-net/actions/workflows/security.yml)
+
 ## Documentation
 
 - [System Requirements](REQUERIMIENTOS_SISTEMA.md)
@@ -296,7 +385,7 @@ For issues, questions, or suggestions:
 ## Roadmap
 
 - [ ] Add comprehensive test coverage
-- [ ] Implement CI/CD with GitHub Actions
+- [x] Implement CI/CD with GitHub Actions
 - [ ] Add support for batch video processing
 - [ ] Implement video playlist support
 - [ ] Add export functionality (PDF, JSON)

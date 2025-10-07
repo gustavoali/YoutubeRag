@@ -116,7 +116,7 @@ public class JobRepository : Repository<Job>, IJobRepository
         try
         {
             return await _dbSet
-                .Where(j => j.JobType == jobType)
+                .Where(j => j.Type.ToString() == jobType)
                 .OrderByDescending(j => j.CreatedAt)
                 .ToListAsync();
         }
