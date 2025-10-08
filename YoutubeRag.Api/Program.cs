@@ -89,6 +89,9 @@ public partial class Program
     // Add services to the container
     builder.Services.AddControllers();
 
+    // Add Memory Cache
+    builder.Services.AddMemoryCache();
+
     // Add AutoMapper - scan the Application assembly for all mapping profiles
     builder.Services.AddAutoMapper(typeof(YoutubeRag.Application.Mappings.UserMappingProfile).Assembly);
 
