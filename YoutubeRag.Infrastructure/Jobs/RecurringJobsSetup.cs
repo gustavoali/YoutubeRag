@@ -37,5 +37,11 @@ public static class RecurringJobsSetup
             "archive-completed-jobs",
             service => service.ArchiveCompletedJobsAsync(),
             Cron.Weekly(DayOfWeek.Sunday, 3, 0)); // Sunday at 3:00 AM
+
+        // Clean up unused Whisper models daily at 3 AM
+        recurringJobManager.AddOrUpdate<WhisperModelCleanupJob>(
+            "cleanup-whisper-models",
+            job => job.ExecuteAsync(CancellationToken.None),
+            Cron.Daily(3, 0)); // 3:00 AM
     }
 }

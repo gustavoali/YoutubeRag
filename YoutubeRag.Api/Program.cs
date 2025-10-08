@@ -83,11 +83,18 @@ public partial class Program
     configuration.GetSection(RateLimitingSettings.SectionName).Bind(rateLimitingSettings);
     builder.Services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
 
+    // Configure Whisper options
+    builder.Services.Configure<YoutubeRag.Application.Configuration.WhisperOptions>(
+        configuration.GetSection(YoutubeRag.Application.Configuration.WhisperOptions.SectionName));
+
     // Register IAppConfiguration
     builder.Services.AddSingleton<YoutubeRag.Application.Configuration.IAppConfiguration, YoutubeRag.Api.Configuration.AppConfiguration>();
 
     // Add services to the container
     builder.Services.AddControllers();
+
+    // Add HttpClient for external API calls
+    builder.Services.AddHttpClient();
 
     // Add Memory Cache
     builder.Services.AddMemoryCache();
@@ -139,6 +146,13 @@ public partial class Program
     // Register segmentation service
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.ISegmentationService,
         YoutubeRag.Infrastructure.Services.SegmentationService>();
+
+    // Register Whisper model management services
+    builder.Services.AddSingleton<YoutubeRag.Application.Interfaces.IWhisperModelDownloadService,
+        YoutubeRag.Infrastructure.Services.WhisperModelDownloadService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IWhisperModelService,
+        YoutubeRag.Application.Services.WhisperModelManager>();
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.WhisperModelCleanupJob>();
 
     // Register repositories
     builder.Services.AddScoped(typeof(YoutubeRag.Application.Interfaces.IRepository<>),
