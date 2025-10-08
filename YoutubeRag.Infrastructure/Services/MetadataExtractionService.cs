@@ -6,6 +6,9 @@ using YoutubeExplode.Common;
 using YoutubeExplode.Exceptions;
 using YoutubeRag.Application.DTOs.Video;
 using YoutubeRag.Application.Interfaces;
+using YoutubeRag.Infrastructure.Resilience;
+using Polly;
+using Polly.Retry;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -16,11 +19,13 @@ public class MetadataExtractionService : IMetadataExtractionService
 {
     private readonly YoutubeClient _youtubeClient;
     private readonly ILogger<MetadataExtractionService> _logger;
+    private readonly AsyncRetryPolicy<VideoMetadataDto> _retryPolicy;
 
     public MetadataExtractionService(ILogger<MetadataExtractionService> logger)
     {
         _logger = logger;
         _youtubeClient = new YoutubeClient();
+        _retryPolicy = PollyPolicies.CreateMetadataExtractionPolicy<VideoMetadataDto>(logger, maxRetries: 3);
     }
 
     /// <inheritdoc />
@@ -33,71 +38,72 @@ public class MetadataExtractionService : IMetadataExtractionService
 
         _logger.LogInformation("Extracting metadata for YouTube video: {YouTubeId}", youTubeId);
 
-        try
+        // Create Polly context with videoId for logging
+        var context = new Context("ExtractMetadata");
+        context["videoId"] = youTubeId;
+
+        return await _retryPolicy.ExecuteAsync(async (ctx, ct) =>
         {
-            // Get video metadata from YouTube
-            var video = await _youtubeClient.Videos.GetAsync(youTubeId, cancellationToken);
-
-            // Get video manifest for additional details (optional, for more comprehensive data)
-            var manifest = await _youtubeClient.Videos.Streams.GetManifestAsync(youTubeId, cancellationToken);
-
-            var metadata = new VideoMetadataDto
+            try
             {
-                Title = video.Title,
-                Description = video.Description,
-                Duration = video.Duration,
-                ViewCount = video.Engagement?.ViewCount is null ? null : (int?)video.Engagement.ViewCount,
-                LikeCount = video.Engagement?.LikeCount is null ? null : (int?)video.Engagement.LikeCount,
-                PublishedAt = video.UploadDate.DateTime,
-                ChannelId = video.Author?.ChannelId.Value,
-                ChannelTitle = video.Author?.ChannelTitle,
-                ThumbnailUrls = GetThumbnailUrls(video.Thumbnails),
-                Tags = video.Keywords.ToList()
-            };
+                // Get video metadata from YouTube
+                var video = await _youtubeClient.Videos.GetAsync(youTubeId, ct);
 
-            _logger.LogInformation(
-                "Successfully extracted metadata for video: {Title} (ID: {YouTubeId}, Duration: {Duration}, Views: {Views})",
-                metadata.Title,
-                youTubeId,
-                metadata.Duration,
-                metadata.ViewCount
-            );
+                // Get video manifest for additional details (optional, for more comprehensive data)
+                var manifest = await _youtubeClient.Videos.Streams.GetManifestAsync(youTubeId, ct);
 
-            return metadata;
-        }
-        catch (VideoUnavailableException ex)
-        {
-            _logger.LogWarning(ex, "Video {YouTubeId} is unavailable (private, deleted, or region-blocked)", youTubeId);
-            throw new InvalidOperationException($"The video '{youTubeId}' is not available. It may be private, deleted, or region-blocked.", ex);
-        }
-        catch (VideoUnplayableException ex)
-        {
-            _logger.LogWarning(ex, "Video {YouTubeId} is unplayable", youTubeId);
-            throw new InvalidOperationException($"The video '{youTubeId}' is unplayable.", ex);
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
-        {
-            _logger.LogWarning(ex, "YoutubeExplode failed with 403 Forbidden. Attempting fallback to yt-dlp for video: {YouTubeId}", youTubeId);
+                var metadata = new VideoMetadataDto
+                {
+                    Title = video.Title,
+                    Description = video.Description,
+                    Duration = video.Duration,
+                    ViewCount = video.Engagement?.ViewCount is null ? null : (int?)video.Engagement.ViewCount,
+                    LikeCount = video.Engagement?.LikeCount is null ? null : (int?)video.Engagement.LikeCount,
+                    PublishedAt = video.UploadDate.DateTime,
+                    ChannelId = video.Author?.ChannelId.Value,
+                    ChannelTitle = video.Author?.ChannelTitle,
+                    ThumbnailUrls = GetThumbnailUrls(video.Thumbnails),
+                    Tags = video.Keywords.ToList()
+                };
 
-            // Fallback to yt-dlp
-            return await ExtractMetadataUsingYtDlpAsync(youTubeId, cancellationToken);
-        }
-        catch (HttpRequestException ex)
-        {
-            // Only wrap non-403 HttpRequestExceptions
-            _logger.LogError(ex, "Network error while extracting metadata for video {YouTubeId}. Status: {StatusCode}", youTubeId, ex.StatusCode);
-            throw new InvalidOperationException($"Failed to connect to YouTube: {ex.Message}", ex);
-        }
-        catch (TaskCanceledException ex)
-        {
-            _logger.LogWarning(ex, "Metadata extraction was cancelled for video {YouTubeId}", youTubeId);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error while extracting metadata for video {YouTubeId}", youTubeId);
-            throw new InvalidOperationException($"An unexpected error occurred while extracting metadata for video '{youTubeId}'.", ex);
-        }
+                _logger.LogInformation(
+                    "Successfully extracted metadata for video: {Title} (ID: {YouTubeId}, Duration: {Duration}, Views: {Views})",
+                    metadata.Title,
+                    youTubeId,
+                    metadata.Duration,
+                    metadata.ViewCount
+                );
+
+                return metadata;
+            }
+            catch (VideoUnavailableException ex)
+            {
+                _logger.LogWarning(ex, "Video {YouTubeId} is unavailable (private, deleted, or region-blocked)", youTubeId);
+                throw new InvalidOperationException($"The video '{youTubeId}' is not available. It may be private, deleted, or region-blocked.", ex);
+            }
+            catch (VideoUnplayableException ex)
+            {
+                _logger.LogWarning(ex, "Video {YouTubeId} is unplayable", youTubeId);
+                throw new InvalidOperationException($"The video '{youTubeId}' is unplayable.", ex);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _logger.LogWarning(ex, "YoutubeExplode failed with 403 Forbidden. Attempting fallback to yt-dlp for video: {YouTubeId}", youTubeId);
+
+                // Fallback to yt-dlp (not retried by Polly)
+                return await ExtractMetadataUsingYtDlpAsync(youTubeId, ct);
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogWarning(ex, "Metadata extraction was cancelled for video {YouTubeId}", youTubeId);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while extracting metadata for video {YouTubeId}", youTubeId);
+                throw new InvalidOperationException($"An unexpected error occurred while extracting metadata for video '{youTubeId}'.", ex);
+            }
+        }, context, cancellationToken);
     }
 
     /// <inheritdoc />
