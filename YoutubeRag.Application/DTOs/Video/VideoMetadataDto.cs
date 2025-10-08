@@ -59,4 +59,14 @@ public class VideoMetadataDto
     /// YouTube category ID
     /// </summary>
     public string? CategoryId { get; set; }
+
+    /// <summary>
+    /// Gets the highest resolution thumbnail URL (maxresdefault)
+    /// </summary>
+    public string? ThumbnailUrl => ThumbnailUrls.FirstOrDefault();
+
+    /// <summary>
+    /// Duration in seconds for validation purposes
+    /// </summary>
+    public int DurationSeconds => (int)(Duration?.TotalSeconds ?? 0);
 }

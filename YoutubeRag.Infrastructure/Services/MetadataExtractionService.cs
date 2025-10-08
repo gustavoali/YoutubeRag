@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.Json;
@@ -5,6 +7,7 @@ using YoutubeExplode;
 using YoutubeExplode.Common;
 using YoutubeExplode.Exceptions;
 using YoutubeRag.Application.DTOs.Video;
+using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Infrastructure.Resilience;
 using Polly;
@@ -19,13 +22,27 @@ public class MetadataExtractionService : IMetadataExtractionService
 {
     private readonly YoutubeClient _youtubeClient;
     private readonly ILogger<MetadataExtractionService> _logger;
+    private readonly IMemoryCache _cache;
+    private readonly IConfiguration _configuration;
     private readonly AsyncRetryPolicy<VideoMetadataDto> _retryPolicy;
 
-    public MetadataExtractionService(ILogger<MetadataExtractionService> logger)
+    private const int DefaultTimeoutSeconds = 30;
+    private const int DefaultMaxRetries = 3;
+    private const int DefaultMaxVideoDurationSeconds = 14400; // 4 hours
+    private const int DefaultMetadataCacheDurationMinutes = 5;
+
+    public MetadataExtractionService(
+        ILogger<MetadataExtractionService> logger,
+        IMemoryCache cache,
+        IConfiguration configuration)
     {
         _logger = logger;
+        _cache = cache;
+        _configuration = configuration;
         _youtubeClient = new YoutubeClient();
-        _retryPolicy = PollyPolicies.CreateMetadataExtractionPolicy<VideoMetadataDto>(logger, maxRetries: 3);
+
+        var maxRetries = _configuration.GetValue<int?>("YouTube:MaxRetries") ?? DefaultMaxRetries;
+        _retryPolicy = PollyPolicies.CreateMetadataExtractionPolicy<VideoMetadataDto>(logger, maxRetries);
     }
 
     /// <inheritdoc />
@@ -36,23 +53,36 @@ public class MetadataExtractionService : IMetadataExtractionService
             throw new ArgumentException("YouTube ID cannot be null or empty", nameof(youTubeId));
         }
 
+        // Check cache first (AC5: Cachear metadata por 5 minutos)
+        string cacheKey = $"metadata_{youTubeId}";
+        if (_cache.TryGetValue(cacheKey, out VideoMetadataDto? cachedMetadata))
+        {
+            _logger.LogInformation("Metadata cache hit for video: {YouTubeId}", youTubeId);
+            return cachedMetadata!;
+        }
+
         _logger.LogInformation("Extracting metadata for YouTube video: {YouTubeId}", youTubeId);
+
+        // Get timeout configuration
+        var timeoutSeconds = _configuration.GetValue<int?>("YouTube:TimeoutSeconds") ?? DefaultTimeoutSeconds;
+
+        // Create timeout cancellation token
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
         // Create Polly context with videoId for logging
         var context = new Context("ExtractMetadata");
         context["videoId"] = youTubeId;
 
-        return await _retryPolicy.ExecuteAsync(async (ctx, ct) =>
+        var metadata = await _retryPolicy.ExecuteAsync(async (ctx, ct) =>
         {
             try
             {
                 // Get video metadata from YouTube
                 var video = await _youtubeClient.Videos.GetAsync(youTubeId, ct);
 
-                // Get video manifest for additional details (optional, for more comprehensive data)
-                var manifest = await _youtubeClient.Videos.Streams.GetManifestAsync(youTubeId, ct);
-
-                var metadata = new VideoMetadataDto
+                // Extract metadata
+                var extractedMetadata = new VideoMetadataDto
                 {
                     Title = video.Title,
                     Description = video.Description,
@@ -63,39 +93,79 @@ public class MetadataExtractionService : IMetadataExtractionService
                     ChannelId = video.Author?.ChannelId.Value,
                     ChannelTitle = video.Author?.ChannelTitle,
                     ThumbnailUrls = GetThumbnailUrls(video.Thumbnails),
-                    Tags = video.Keywords.ToList()
+                    Tags = video.Keywords.ToList(),
+                    CategoryId = null // YoutubeExplode doesn't provide category, but we keep the field for yt-dlp fallback
                 };
+
+                // AC3: Validación de Metadata
+                ValidateMetadata(extractedMetadata, youTubeId);
 
                 _logger.LogInformation(
                     "Successfully extracted metadata for video: {Title} (ID: {YouTubeId}, Duration: {Duration}, Views: {Views})",
-                    metadata.Title,
+                    extractedMetadata.Title,
                     youTubeId,
-                    metadata.Duration,
-                    metadata.ViewCount
+                    extractedMetadata.Duration,
+                    extractedMetadata.ViewCount
                 );
 
-                return metadata;
+                return extractedMetadata;
             }
             catch (VideoUnavailableException ex)
             {
-                _logger.LogWarning(ex, "Video {YouTubeId} is unavailable (private, deleted, or region-blocked)", youTubeId);
-                throw new InvalidOperationException($"The video '{youTubeId}' is not available. It may be private, deleted, or region-blocked.", ex);
+                // AC4: Manejo de Videos No Disponibles
+                var errorMessage = ex.Message.ToLowerInvariant();
+
+                if (errorMessage.Contains("private"))
+                {
+                    _logger.LogWarning(ex, "Video {YouTubeId} is private", youTubeId);
+                    throw new BusinessValidationException("VIDEO_PRIVATE", "This video is private and cannot be accessed");
+                }
+
+                if (errorMessage.Contains("deleted") || errorMessage.Contains("removed"))
+                {
+                    _logger.LogWarning(ex, "Video {YouTubeId} has been deleted", youTubeId);
+                    throw new BusinessValidationException("VIDEO_DELETED", "This video has been deleted or removed");
+                }
+
+                _logger.LogWarning(ex, "Video {YouTubeId} is unavailable (possibly region-blocked)", youTubeId);
+                throw new BusinessValidationException("VIDEO_UNAVAILABLE", "This video is not available. It may be region-blocked or restricted");
             }
             catch (VideoUnplayableException ex)
             {
+                // Check for age restrictions
+                var errorMessage = ex.Message.ToLowerInvariant();
+                if (errorMessage.Contains("age") || errorMessage.Contains("restricted"))
+                {
+                    _logger.LogWarning(ex, "Video {YouTubeId} has age restrictions", youTubeId);
+                    throw new BusinessValidationException("VIDEO_AGE_RESTRICTED", "This video has age restrictions and cannot be accessed");
+                }
+
                 _logger.LogWarning(ex, "Video {YouTubeId} is unplayable", youTubeId);
-                throw new InvalidOperationException($"The video '{youTubeId}' is unplayable.", ex);
+                throw new BusinessValidationException("VIDEO_UNPLAYABLE", "This video is unplayable");
             }
             catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
             {
                 _logger.LogWarning(ex, "YoutubeExplode failed with 403 Forbidden. Attempting fallback to yt-dlp for video: {YouTubeId}", youTubeId);
 
                 // Fallback to yt-dlp (not retried by Polly)
-                return await ExtractMetadataUsingYtDlpAsync(youTubeId, ct);
+                var fallbackMetadata = await ExtractMetadataUsingYtDlpAsync(youTubeId, ct);
+                ValidateMetadata(fallbackMetadata, youTubeId);
+                return fallbackMetadata;
+            }
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Timeout occurred
+                _logger.LogWarning(ex, "Metadata extraction timed out for video {YouTubeId} after {Timeout} seconds", youTubeId, timeoutSeconds);
+                throw new BusinessValidationException("EXTRACTION_TIMEOUT", $"Metadata extraction timed out after {timeoutSeconds} seconds");
             }
             catch (TaskCanceledException ex)
             {
                 _logger.LogWarning(ex, "Metadata extraction was cancelled for video {YouTubeId}", youTubeId);
+                throw;
+            }
+            catch (BusinessValidationException)
+            {
+                // Re-throw business validation exceptions
                 throw;
             }
             catch (Exception ex)
@@ -103,7 +173,74 @@ public class MetadataExtractionService : IMetadataExtractionService
                 _logger.LogError(ex, "Unexpected error while extracting metadata for video {YouTubeId}", youTubeId);
                 throw new InvalidOperationException($"An unexpected error occurred while extracting metadata for video '{youTubeId}'.", ex);
             }
-        }, context, cancellationToken);
+        }, context, timeoutCts.Token);
+
+        // Cache metadata for configured duration (AC5: Cachear metadata por 5 minutos)
+        var cacheDurationMinutes = _configuration.GetValue<int?>("YouTube:MetadataCacheDurationMinutes") ?? DefaultMetadataCacheDurationMinutes;
+        _cache.Set(cacheKey, metadata, TimeSpan.FromMinutes(cacheDurationMinutes));
+        _logger.LogDebug("Cached metadata for video {YouTubeId} for {Duration} minutes", youTubeId, cacheDurationMinutes);
+
+        return metadata;
+    }
+
+    /// <summary>
+    /// Validates extracted metadata according to business rules (AC3)
+    /// </summary>
+    private void ValidateMetadata(VideoMetadataDto metadata, string youTubeId)
+    {
+        var maxDuration = _configuration.GetValue<int?>("YouTube:MaxVideoDurationSeconds") ?? DefaultMaxVideoDurationSeconds;
+
+        // Duración > 0
+        if (metadata.DurationSeconds <= 0)
+        {
+            _logger.LogWarning("Video {YouTubeId} has invalid duration: {Duration}", youTubeId, metadata.Duration);
+            throw new BusinessValidationException("INVALID_DURATION", "Video duration must be greater than 0");
+        }
+
+        // Duración < 14400 segundos (4 horas max)
+        if (metadata.DurationSeconds > maxDuration)
+        {
+            var maxHours = maxDuration / 3600;
+            _logger.LogWarning("Video {YouTubeId} exceeds maximum duration: {Duration} (max: {MaxHours} hours)",
+                youTubeId, metadata.Duration, maxHours);
+            throw new BusinessValidationException("VIDEO_TOO_LONG",
+                $"Video exceeds maximum duration of {maxHours} hours (video is {metadata.Duration?.TotalHours:F2} hours)");
+        }
+
+        // Título no vacío
+        if (string.IsNullOrWhiteSpace(metadata.Title))
+        {
+            _logger.LogWarning("Video {YouTubeId} has empty title", youTubeId);
+            throw new BusinessValidationException("INVALID_TITLE", "Video title cannot be empty");
+        }
+
+        // Thumbnail URL válida
+        if (string.IsNullOrWhiteSpace(metadata.ThumbnailUrl))
+        {
+            _logger.LogWarning("Video {YouTubeId} has no thumbnail URL", youTubeId);
+            throw new BusinessValidationException("INVALID_THUMBNAIL", "Video must have a valid thumbnail URL");
+        }
+
+        // Warning si faltan campos opcionales
+        if (metadata.ViewCount == null)
+        {
+            _logger.LogWarning("Video {YouTubeId} is missing ViewCount", youTubeId);
+        }
+
+        if (string.IsNullOrWhiteSpace(metadata.Description))
+        {
+            _logger.LogWarning("Video {YouTubeId} is missing Description", youTubeId);
+        }
+
+        if (metadata.Tags == null || !metadata.Tags.Any())
+        {
+            _logger.LogWarning("Video {YouTubeId} has no tags", youTubeId);
+        }
+
+        if (string.IsNullOrWhiteSpace(metadata.CategoryId))
+        {
+            _logger.LogDebug("Video {YouTubeId} is missing CategoryId (normal for YoutubeExplode)", youTubeId);
+        }
     }
 
     /// <inheritdoc />
@@ -313,7 +450,8 @@ public class MetadataExtractionService : IMetadataExtractionService
                 ThumbnailUrls = ExtractThumbnailUrls(root),
                 Tags = root.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Array
                     ? tagsProp.EnumerateArray().Select(t => t.GetString()).Where(t => t != null).ToList()!
-                    : new List<string>()
+                    : new List<string>(),
+                CategoryId = root.TryGetProperty("category_id", out var categoryIdProp) ? categoryIdProp.GetString() : null
             };
 
             _logger.LogInformation(
