@@ -3,6 +3,7 @@ using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Application.Configuration;
+using YoutubeRag.Application.Utilities;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -246,11 +247,7 @@ public class VideoIngestionService : IVideoIngestionService
 
     public string? ExtractYouTubeId(string url)
     {
-        if (string.IsNullOrWhiteSpace(url))
-            return null;
-
-        var match = YouTubeIdRegex.Match(url);
-        return match.Success ? match.Groups[1].Value : null;
+        return YouTubeUrlParser.ExtractVideoId(url);
     }
 
     public async Task<bool> IsVideoAlreadyIngestedAsync(
