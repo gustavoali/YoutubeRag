@@ -1,0 +1,390 @@
+# Security Scanning Pipeline
+# Performs comprehensive security checks on code, dependencies, and containers
+name: Security Scanning
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # Job 1: CodeQL Analysis
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'csharp', 'javascript' ]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - name: Setup .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build for CodeQL
+        if: matrix.language == 'csharp'
+        run: |
+          dotnet restore YoutubeRag.sln
+          dotnet build YoutubeRag.sln --configuration Release --no-restore
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # Job 2: Dependency Scanning
+  dependency-scanning:
+    name: Dependency Vulnerability Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Check for vulnerable NuGet packages
+      - name: Check NuGet Vulnerabilities
+        run: |
+          dotnet restore YoutubeRag.sln
+
+          echo "Checking for vulnerable packages..."
+          dotnet list package --vulnerable --include-transitive > vulnerability-report.txt
+
+          # Parse and report vulnerabilities
+          if grep -q "has the following vulnerable packages" vulnerability-report.txt; then
+            echo "::error::Vulnerable packages found!"
+            cat vulnerability-report.txt
+
+            # Extract vulnerability details for reporting
+            echo "## Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat vulnerability-report.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+            exit 1
+          else
+            echo "::notice::No vulnerable packages found"
+            echo "✅ No vulnerable packages found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # OWASP Dependency Check
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'YoutubeRag'
+          path: '.'
+          format: 'HTML,JSON,SARIF'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --nvdApiKey ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload OWASP Results to GitHub
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'reports/dependency-check-report.sarif'
+          category: 'dependency-check'
+
+      - name: Upload OWASP Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: owasp-dependency-check-report
+          path: reports/
+          retention-days: 30
+
+      # Snyk Security Scanning (optional - requires SNYK_TOKEN)
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/dotnet@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+  # Job 3: Container Security Scanning
+  container-security:
+    name: Container Security Scanning
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build Docker image for scanning
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: youtuberag:scanning
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Trivy Container Scanning
+      - name: Run Trivy Container Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'youtuberag:scanning'
+          format: 'sarif'
+          output: 'trivy-container-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-container-results.sarif'
+          category: 'trivy-container'
+
+      # Grype Container Scanning
+      - name: Run Grype Container Scanner
+        uses: anchore/scan-action@v3
+        id: grype
+        with:
+          image: 'youtuberag:scanning'
+          fail-build: false
+          severity-cutoff: high
+
+      - name: Upload Grype Results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: 'grype-container'
+
+      # Docker Scout (requires Docker Hub account)
+      - name: Docker Scout Analysis
+        uses: docker/scout-action@v1
+        continue-on-error: true
+        with:
+          command: cves
+          image: 'youtuberag:scanning'
+          only-severities: critical,high
+          exit-code: false
+
+  # Job 4: Secret Scanning
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      # GitLeaks Secret Scanning
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # TruffleHog Secret Scanning
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # Job 5: Infrastructure as Code Scanning
+  iac-scanning:
+    name: IaC Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Checkov IaC Scanner
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          quiet: false
+          soft_fail: false
+          framework: dockerfile,kubernetes,helm
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          skip_check: CKV_DOCKER_2,CKV_DOCKER_3  # Skip specific checks if needed
+
+      - name: Upload Checkov Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+          category: 'checkov-iac'
+
+      # Terrascan (for Terraform/IaC)
+      - name: Run Terrascan
+        uses: tenable/terrascan-action@main
+        continue-on-error: true
+        with:
+          iac_type: 'docker'
+          iac_dir: '.'
+          policy_type: 'docker'
+          only_warn: false
+          sarif_upload: true
+
+  # Job 6: SAST (Static Application Security Testing)
+  sast:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Security Code Scan for .NET
+      - name: Security Code Scan
+        run: |
+          # Install Security Code Scan
+          dotnet tool install --global security-scan
+
+          # Run security scan
+          dotnet restore YoutubeRag.sln
+          security-scan YoutubeRag.sln --export=sarif --output=scs-results.sarif
+        continue-on-error: true
+
+      # Semgrep SAST
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          generateSarif: true
+          config: >-
+            p/security-audit
+            p/csharp
+            p/owasp-top-ten
+            p/r2c-security-audit
+
+      - name: Upload Semgrep Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: 'semgrep'
+
+  # Job 7: License Compliance Check
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Check NuGet package licenses
+      - name: Check Package Licenses
+        run: |
+          dotnet restore YoutubeRag.sln
+
+          # Install dotnet-project-licenses tool
+          dotnet tool install --global dotnet-project-licenses
+
+          # Generate license report
+          dotnet-project-licenses -i YoutubeRag.sln -o --export-license-texts > license-report.txt
+
+          echo "## License Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          head -50 license-report.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload License Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: license-report
+          path: license-report.txt
+          retention-days: 30
+
+  # Job 8: Security Report Summary
+  security-summary:
+    name: Security Summary Report
+    runs-on: ubuntu-latest
+    needs: [codeql-analysis, dependency-scanning, container-security, secret-scanning, iac-scanning, sast, license-check]
+    if: always()
+
+    steps:
+      - name: Generate Security Summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL Analysis | ${{ needs.codeql-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scanning | ${{ needs.dependency-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Security | ${{ needs.container-security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scanning | ${{ needs.secret-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IaC Scanning | ${{ needs.iac-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Set overall status
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Security issues detected!** Please review the scan results above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **All security checks passed!**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify Security Status
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: 'failure'
+          text: 'Security vulnerabilities detected in ${{ github.repository }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,workflow
+        continue-on-error: true

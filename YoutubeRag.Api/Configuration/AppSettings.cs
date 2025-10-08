@@ -13,6 +13,25 @@ public class AppSettings
     public bool EnableRealProcessing { get; set; } = false;
     public bool EnableDocs { get; set; } = true;
     public bool EnableCors { get; set; } = true;
+    
+    // Hangfire settings
+    public bool EnableBackgroundJobs { get; set; } = true;
+    public int? MaxConcurrentJobs { get; set; } = 3;
+    public bool EnableHangfireDashboard { get; set; } = true;
+
+    // Audio and Transcription settings
+    public string AudioStoragePath { get; set; } = "./data/audio";
+    public string WhisperModelSize { get; set; } = "medium";
+    public bool AutoTranscribe { get; set; } = true;
+    public int MaxAudioFileSizeMB { get; set; } = 500;
+    public bool EnableAutoModelDowngrade { get; set; } = true;
+
+    // Embedding settings
+    public int EmbeddingDimension { get; set; } = 384;
+    public int EmbeddingBatchSize { get; set; } = 32;
+    public bool AutoGenerateEmbeddings { get; set; } = true;
+    public int MaxSegmentLength { get; set; } = 500;
+    public int MinSegmentLength { get; set; } = 100;
 
     // Helper properties
     public bool IsDevelopment => Environment.Equals("Development", StringComparison.OrdinalIgnoreCase);
