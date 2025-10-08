@@ -1,3 +1,4 @@
+using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -176,6 +177,13 @@ public class TranscriptSegmentRepository : ITranscriptSegmentRepository
             return segments;
         }
 
+        // Use bulk insert for large batches (>100 segments), otherwise use regular AddRange
+        if (segments.Count > 100)
+        {
+            _logger.LogDebug("Using bulk insert for {Count} segments", segments.Count);
+            return await BulkInsertAsync(segments, cancellationToken);
+        }
+
         var now = DateTime.UtcNow;
         foreach (var segment in segments)
         {
@@ -191,6 +199,54 @@ public class TranscriptSegmentRepository : ITranscriptSegmentRepository
         await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Added {Count} transcript segments", segments.Count);
+
+        return segments;
+    }
+
+    /// <summary>
+    /// Bulk inserts transcript segments using EFCore.BulkExtensions for optimal performance
+    /// </summary>
+    /// <param name="segments">List of segments to insert</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Inserted segments</returns>
+    public async Task<List<TranscriptSegment>> BulkInsertAsync(
+        List<TranscriptSegment> segments,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(segments, nameof(segments));
+
+        if (!segments.Any())
+        {
+            return segments;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var segment in segments)
+        {
+            if (string.IsNullOrWhiteSpace(segment.Id))
+            {
+                segment.Id = Guid.NewGuid().ToString();
+            }
+            segment.CreatedAt = now;
+            segment.UpdatedAt = now;
+        }
+
+        var startTime = DateTime.UtcNow;
+
+        // Use EFCore.BulkExtensions for high-performance bulk insert
+        var bulkConfig = new BulkConfig
+        {
+            BatchSize = 1000,
+            EnableStreaming = true,
+            SetOutputIdentity = false, // We're using custom GUIDs, not auto-generated IDs
+            TrackingEntities = false
+        };
+
+        await _context.BulkInsertAsync(segments, bulkConfig);
+
+        var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
+        _logger.LogInformation("Bulk inserted {Count} transcript segments in {Duration}ms ({Rate} segments/sec)",
+            segments.Count, duration, (segments.Count / (duration / 1000.0)).ToString("F0"));
 
         return segments;
     }

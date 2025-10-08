@@ -19,6 +19,7 @@ public class TranscriptionJobProcessor
     private readonly ITranscriptSegmentRepository _transcriptSegmentRepository;
     private readonly IAudioExtractionService _audioExtractionService;
     private readonly ITranscriptionService _transcriptionService;
+    private readonly ISegmentationService _segmentationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAppConfiguration _appConfiguration;
     private readonly IBackgroundJobService _backgroundJobService;
@@ -31,6 +32,7 @@ public class TranscriptionJobProcessor
         ITranscriptSegmentRepository transcriptSegmentRepository,
         IAudioExtractionService audioExtractionService,
         ITranscriptionService transcriptionService,
+        ISegmentationService segmentationService,
         IUnitOfWork unitOfWork,
         IAppConfiguration appConfiguration,
         IBackgroundJobService backgroundJobService,
@@ -42,6 +44,7 @@ public class TranscriptionJobProcessor
         _transcriptSegmentRepository = transcriptSegmentRepository;
         _audioExtractionService = audioExtractionService;
         _transcriptionService = transcriptionService;
+        _segmentationService = segmentationService;
         _unitOfWork = unitOfWork;
         _appConfiguration = appConfiguration;
         _backgroundJobService = backgroundJobService;
@@ -423,32 +426,79 @@ public class TranscriptionJobProcessor
                 existingSegmentsCount, video.Id);
         }
 
-        // Create new segments
-        var segmentCount = 0;
+        // Create new segments list for bulk insert
+        var allSegments = new List<TranscriptSegment>();
+        var now = DateTime.UtcNow;
+        const int MAX_SEGMENT_LENGTH = 500;
+
+        // Process each segment from Whisper output
         for (int i = 0; i < transcriptionResult.Segments.Count; i++)
         {
             var segmentDto = transcriptionResult.Segments[i];
-            var segment = new TranscriptSegment
-            {
-                Id = Guid.NewGuid().ToString(),
-                VideoId = video.Id,
-                SegmentIndex = i,
-                StartTime = segmentDto.StartTime,
-                EndTime = segmentDto.EndTime,
-                Text = segmentDto.Text.Trim(),
-                Language = transcriptionResult.Language,
-                Confidence = segmentDto.Confidence,
-                Speaker = segmentDto.Speaker,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            var trimmedText = segmentDto.Text.Trim();
 
-            await _transcriptSegmentRepository.AddAsync(segment);
-            segmentCount++;
+            // Check if segment is too long and needs splitting
+            if (trimmedText.Length > MAX_SEGMENT_LENGTH)
+            {
+                _logger.LogDebug("Segment {Index} is too long ({Length} chars). Splitting into smaller segments.",
+                    i, trimmedText.Length);
+
+                // Use SegmentationService to split long segment
+                var subSegments = await _segmentationService.CreateSegmentsFromTranscriptAsync(
+                    video.Id,
+                    trimmedText,
+                    segmentDto.StartTime,
+                    segmentDto.EndTime,
+                    MAX_SEGMENT_LENGTH
+                );
+
+                // Update metadata for sub-segments
+                foreach (var subSegment in subSegments)
+                {
+                    subSegment.Language = transcriptionResult.Language;
+                    subSegment.Confidence = segmentDto.Confidence;
+                    subSegment.Speaker = segmentDto.Speaker;
+                    subSegment.CreatedAt = now;
+                    subSegment.UpdatedAt = now;
+                }
+
+                allSegments.AddRange(subSegments);
+            }
+            else
+            {
+                // Segment is already the right size
+                var segment = new TranscriptSegment
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    VideoId = video.Id,
+                    SegmentIndex = i,
+                    StartTime = segmentDto.StartTime,
+                    EndTime = segmentDto.EndTime,
+                    Text = trimmedText,
+                    Language = transcriptionResult.Language,
+                    Confidence = segmentDto.Confidence,
+                    Speaker = segmentDto.Speaker,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                allSegments.Add(segment);
+            }
         }
 
-        _logger.LogInformation("Saved {Count} transcript segments for video: {VideoId}",
-            segmentCount, video.Id);
+        // Re-index all segments sequentially
+        for (int i = 0; i < allSegments.Count; i++)
+        {
+            allSegments[i].SegmentIndex = i;
+        }
+
+        // Bulk insert all segments at once
+        if (allSegments.Any())
+        {
+            await _transcriptSegmentRepository.AddRangeAsync(allSegments, cancellationToken);
+            _logger.LogInformation("Bulk inserted {Count} transcript segments for video: {VideoId} (from {OriginalCount} Whisper segments)",
+                allSegments.Count, video.Id, transcriptionResult.Segments.Count);
+        }
     }
 
     private async Task UpdateJobStatusAsync(Job job, JobStatus status, string message, CancellationToken cancellationToken)
