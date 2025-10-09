@@ -56,10 +56,22 @@ public class ApplicationDbContext : DbContext
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    // CRITICAL FIX (ISSUE-002): Only set timestamps if not already set
+                    // This allows callers to set shared timestamps for bulk insert operations
+                    // while maintaining automatic timestamp behavior for entities that don't set them
+                    if (entry.Entity.CreatedAt == default)
+                    {
+                        entry.Entity.CreatedAt = DateTime.UtcNow;
+                    }
+
+                    if (entry.Entity.UpdatedAt == default)
+                    {
+                        entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    }
                     break;
+
                 case EntityState.Modified:
+                    // Always update UpdatedAt for modifications
                     entry.Entity.UpdatedAt = DateTime.UtcNow;
                     break;
             }

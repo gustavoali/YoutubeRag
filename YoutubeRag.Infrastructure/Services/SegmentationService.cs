@@ -187,9 +187,10 @@ public partial class SegmentationService : ISegmentationService
                 Text = segmentText,
                 StartTime = currentTime,
                 EndTime = currentTime + segmentDuration,
-                SegmentIndex = i,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                SegmentIndex = i
+                // CRITICAL FIX (ISSUE-002): Do NOT set CreatedAt/UpdatedAt here
+                // Let the caller (TranscriptionJobProcessor) set these timestamps
+                // with a shared timestamp for true bulk insert behavior
             };
 
             segments.Add(segment);
@@ -353,7 +354,9 @@ public partial class SegmentationService : ISegmentationService
     }
 
     /// <summary>
-    /// Splits long text that doesn't have natural boundaries
+    /// Splits long text that doesn't have natural boundaries.
+    /// ENFORCES HARD LIMIT: No segment can exceed maxLength characters.
+    /// If a single word exceeds maxLength, it will be forcibly split at character boundaries.
     /// </summary>
     private List<string> SplitLongText(string text, int maxLength)
     {
@@ -366,22 +369,112 @@ public partial class SegmentationService : ISegmentationService
             if (string.IsNullOrWhiteSpace(word))
                 continue;
 
+            // HARD LIMIT ENFORCEMENT: If adding this word would exceed maxLength, save current part
             if (currentPart.Length + word.Length + 1 > maxLength && currentPart.Length > 0)
             {
                 parts.Add(currentPart.ToString().Trim());
                 currentPart.Clear();
             }
 
+            // Handle extremely long words that exceed maxLength by themselves
+            if (word.Length > maxLength)
+            {
+                _logger.LogWarning("Encountered word longer than maxLength ({Length} > {MaxLength}). Forcibly splitting at character boundaries.",
+                    word.Length, maxLength);
+
+                // If current part has content, save it first
+                if (currentPart.Length > 0)
+                {
+                    parts.Add(currentPart.ToString().Trim());
+                    currentPart.Clear();
+                }
+
+                // Split the long word at character boundaries
+                var remainingWord = word;
+                while (remainingWord.Length > maxLength)
+                {
+                    parts.Add(remainingWord.Substring(0, maxLength));
+                    remainingWord = remainingWord.Substring(maxLength);
+                }
+
+                // Add remaining portion if any
+                if (remainingWord.Length > 0)
+                {
+                    currentPart.Append(remainingWord);
+                }
+
+                continue;
+            }
+
+            // Normal case: add word to current part
             if (currentPart.Length > 0)
             {
                 currentPart.Append(' ');
             }
             currentPart.Append(word);
+
+            // SAFETY CHECK: Even after adding a normal word, verify we haven't exceeded maxLength
+            // This handles edge cases where the StringBuilder might exceed limit
+            if (currentPart.Length > maxLength)
+            {
+                _logger.LogWarning("Current part exceeded maxLength after adding word. Length: {Length}, MaxLength: {MaxLength}. Splitting.",
+                    currentPart.Length, maxLength);
+
+                var oversizedText = currentPart.ToString();
+                currentPart.Clear();
+
+                // Recursively split the oversized text to ensure compliance
+                var splitParts = SplitAtCharacterBoundary(oversizedText, maxLength);
+                parts.AddRange(splitParts);
+            }
         }
 
+        // Add final part if any
         if (currentPart.Length > 0)
         {
-            parts.Add(currentPart.ToString().Trim());
+            var finalText = currentPart.ToString().Trim();
+
+            // Final safety check: ensure last part doesn't exceed maxLength
+            if (finalText.Length > maxLength)
+            {
+                _logger.LogWarning("Final part exceeds maxLength ({Length} > {MaxLength}). Splitting.",
+                    finalText.Length, maxLength);
+
+                var splitParts = SplitAtCharacterBoundary(finalText, maxLength);
+                parts.AddRange(splitParts);
+            }
+            else if (finalText.Length > 0)
+            {
+                parts.Add(finalText);
+            }
+        }
+
+        // POST-PROCESSING VALIDATION: Verify no part exceeds maxLength
+        foreach (var part in parts)
+        {
+            if (part.Length > maxLength)
+            {
+                _logger.LogError("CRITICAL: SplitLongText produced part with length {Length} exceeding maxLength {MaxLength}. This should never happen.",
+                    part.Length, maxLength);
+            }
+        }
+
+        return parts;
+    }
+
+    /// <summary>
+    /// Splits text at character boundaries when word-based splitting is not possible.
+    /// Used as a fallback for extremely long text without whitespace boundaries.
+    /// </summary>
+    private List<string> SplitAtCharacterBoundary(string text, int maxLength)
+    {
+        var parts = new List<string>();
+
+        for (int i = 0; i < text.Length; i += maxLength)
+        {
+            var remainingLength = text.Length - i;
+            var chunkLength = Math.Min(maxLength, remainingLength);
+            parts.Add(text.Substring(i, chunkLength));
         }
 
         return parts;
