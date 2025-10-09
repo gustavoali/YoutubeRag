@@ -171,10 +171,8 @@ public class TranscriptionJobProcessor
                 UpdatedAt = DateTime.UtcNow
             });
 
-            // Use dynamic cast to access the new method
-            // This allows backward compatibility if the interface hasn't been updated yet
-            dynamic audioService = _audioExtractionService;
-            audioFilePath = await audioService.ExtractWhisperAudioFromVideoAsync(videoFilePath, video.Id, cancellationToken);
+            // Extract Whisper-compatible audio (16kHz mono WAV) from the downloaded video
+            audioFilePath = await _audioExtractionService.ExtractWhisperAudioFromVideoAsync(videoFilePath, video.Id, cancellationToken);
 
             // Get audio info
             var audioInfo = await _audioExtractionService.GetAudioInfoAsync(audioFilePath, cancellationToken);

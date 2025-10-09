@@ -44,6 +44,12 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
             .Setup(x => x.DownloadVideoAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string youtubeId, IProgress<double> progress, CancellationToken ct) =>
                 $"C:\\temp\\{youtubeId}_video.mp4");
+
+        // Default mock for Whisper audio extraction
+        _mockAudioExtractionService
+            .Setup(x => x.ExtractWhisperAudioFromVideoAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string videoPath, string videoId, CancellationToken ct) =>
+                $"C:\\temp\\{videoId}_whisper.wav");
     }
 
     private TranscriptionJobProcessor CreateProcessor()

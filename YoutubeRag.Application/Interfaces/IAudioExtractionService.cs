@@ -22,6 +22,15 @@ public interface IAudioExtractionService
     Task<string> ExtractAudioFromVideoFileAsync(string videoFilePath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Extracts Whisper-compatible audio (16kHz mono WAV) from a video file
+    /// </summary>
+    /// <param name="videoFilePath">Path to the video file</param>
+    /// <param name="videoId">Video ID for naming the audio file</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Path to the extracted Whisper-compatible audio file</returns>
+    Task<string> ExtractWhisperAudioFromVideoAsync(string videoFilePath, string videoId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes an audio file from storage
     /// </summary>
     /// <param name="audioFilePath">Path to the audio file to delete</param>
