@@ -143,6 +143,12 @@ public partial class Program
     builder.Services.AddScoped<YoutubeRag.Application.Services.TranscriptionJobProcessor>();
     builder.Services.AddScoped<YoutubeRag.Infrastructure.Services.EmbeddingJobProcessor>();
 
+    // Register pipeline stage processors
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.DownloadJobProcessor>();
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.AudioExtractionJobProcessor>();
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.TranscriptionStageJobProcessor>();
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.SegmentationJobProcessor>();
+
     // Register Hangfire background job services
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IBackgroundJobService,
         YoutubeRag.Infrastructure.Services.HangfireJobService>();
@@ -179,6 +185,8 @@ public partial class Program
         YoutubeRag.Infrastructure.Repositories.TranscriptSegmentRepository>();
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IRefreshTokenRepository,
         YoutubeRag.Infrastructure.Repositories.RefreshTokenRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IDeadLetterJobRepository,
+        YoutubeRag.Infrastructure.Repositories.DeadLetterJobRepository>();
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IUnitOfWork,
         YoutubeRag.Infrastructure.Repositories.UnitOfWork>();
 

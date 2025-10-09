@@ -36,6 +36,15 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(j => j.Progress)
             .HasDefaultValue(0);
 
+        builder.Property(j => j.CurrentStage)
+            .IsRequired()
+            .HasDefaultValue(PipelineStage.None)
+            .HasConversion<string>();
+
+        builder.Property(j => j.StageProgressJson)
+            .HasColumnType("JSON")
+            .HasColumnName("StageProgress");
+
         builder.Property(j => j.Result)
             .HasColumnType("TEXT");
 
@@ -53,6 +62,11 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
 
         builder.Property(j => j.MaxRetries)
             .HasDefaultValue(3);
+
+        builder.Property(j => j.NextRetryAt);
+
+        builder.Property(j => j.LastFailureCategory)
+            .HasMaxLength(100);
 
         builder.Property(j => j.WorkerId)
             .HasMaxLength(255);

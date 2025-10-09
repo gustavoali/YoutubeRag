@@ -58,6 +58,7 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
             Scope.ServiceProvider.GetRequiredService<IVideoRepository>(),
             Scope.ServiceProvider.GetRequiredService<IJobRepository>(),
             Scope.ServiceProvider.GetRequiredService<ITranscriptSegmentRepository>(),
+            Scope.ServiceProvider.GetRequiredService<IDeadLetterJobRepository>(),
             _mockAudioExtractionService.Object,
             _mockVideoDownloadService.Object,
             _mockTranscriptionService.Object,

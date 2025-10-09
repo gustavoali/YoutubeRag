@@ -6,6 +6,7 @@ using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
+using System.Text.Json;
 
 namespace YoutubeRag.Application.Services;
 
@@ -17,6 +18,7 @@ public class TranscriptionJobProcessor
     private readonly IVideoRepository _videoRepository;
     private readonly IJobRepository _jobRepository;
     private readonly ITranscriptSegmentRepository _transcriptSegmentRepository;
+    private readonly IDeadLetterJobRepository _deadLetterJobRepository;
     private readonly IAudioExtractionService _audioExtractionService;
     private readonly IVideoDownloadService _videoDownloadService;
     private readonly ITranscriptionService _transcriptionService;
@@ -31,6 +33,7 @@ public class TranscriptionJobProcessor
         IVideoRepository videoRepository,
         IJobRepository jobRepository,
         ITranscriptSegmentRepository transcriptSegmentRepository,
+        IDeadLetterJobRepository deadLetterJobRepository,
         IAudioExtractionService audioExtractionService,
         IVideoDownloadService videoDownloadService,
         ITranscriptionService transcriptionService,
@@ -44,6 +47,7 @@ public class TranscriptionJobProcessor
         _videoRepository = videoRepository;
         _jobRepository = jobRepository;
         _transcriptSegmentRepository = transcriptSegmentRepository;
+        _deadLetterJobRepository = deadLetterJobRepository;
         _audioExtractionService = audioExtractionService;
         _videoDownloadService = videoDownloadService;
         _transcriptionService = transcriptionService;
@@ -348,7 +352,46 @@ public class TranscriptionJobProcessor
 
             if (transcriptionJob != null)
             {
-                await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, ex.Message, cancellationToken);
+                // Get retry policy for this exception
+                var retryPolicy = JobRetryPolicy.GetPolicy(ex, _logger);
+                transcriptionJob.LastFailureCategory = retryPolicy.Category.ToString();
+
+                _logger.LogInformation("Applied retry policy for job {JobId}: {PolicyDescription}",
+                    transcriptionJob.Id, retryPolicy.Description);
+
+                // Check if this is a permanent error - send directly to DLQ
+                if (retryPolicy.SendToDeadLetterQueue)
+                {
+                    _logger.LogWarning("Job {JobId} encountered permanent error. Sending directly to Dead Letter Queue",
+                        transcriptionJob.Id);
+
+                    await SendToDeadLetterQueueAsync(transcriptionJob, ex, retryPolicy.Category.ToString(), cancellationToken);
+                    await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, ex.Message, cancellationToken);
+                }
+                else
+                {
+                    // Increment retry count
+                    transcriptionJob.RetryCount++;
+
+                    // Calculate next retry time based on policy
+                    var nextRetryDelay = retryPolicy.GetNextRetryDelay(transcriptionJob.RetryCount - 1);
+                    transcriptionJob.NextRetryAt = DateTime.UtcNow.Add(nextRetryDelay);
+
+                    _logger.LogInformation("Job {JobId} scheduled for retry {RetryCount}/{MaxRetries} at {NextRetryAt} (delay: {Delay})",
+                        transcriptionJob.Id, transcriptionJob.RetryCount, retryPolicy.MaxRetries,
+                        transcriptionJob.NextRetryAt, nextRetryDelay);
+
+                    // Check if job has exceeded max retries for this policy - send to DLQ
+                    if (transcriptionJob.RetryCount >= retryPolicy.MaxRetries)
+                    {
+                        _logger.LogWarning("Job {JobId} has exceeded max retries ({RetryCount}/{MaxRetries}). Sending to Dead Letter Queue",
+                            transcriptionJob.Id, transcriptionJob.RetryCount, retryPolicy.MaxRetries);
+
+                        await SendToDeadLetterQueueAsync(transcriptionJob, ex, retryPolicy.Category.ToString(), cancellationToken);
+                    }
+
+                    await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, ex.Message, cancellationToken);
+                }
 
                 // Notify: Job failed
                 await _progressNotificationService.NotifyJobFailedAsync(
@@ -661,6 +704,86 @@ public class TranscriptionJobProcessor
         else
         {
             return TranscriptionQuality.Low;
+        }
+    }
+
+    /// <summary>
+    /// Sends a failed job to the Dead Letter Queue after max retries exceeded
+    /// </summary>
+    /// <param name="job">The failed job</param>
+    /// <param name="exception">The exception that caused the failure</param>
+    /// <param name="failureCategory">The category of failure (from retry policy)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    private async Task SendToDeadLetterQueueAsync(Job job, Exception exception, string failureCategory, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Check if already in DLQ
+            var existingDlq = await _deadLetterJobRepository.GetByJobIdAsync(job.Id);
+            if (existingDlq != null)
+            {
+                _logger.LogWarning("Job {JobId} already exists in Dead Letter Queue", job.Id);
+                return;
+            }
+
+            // Create failure details object
+            var failureDetails = new
+            {
+                ExceptionType = exception.GetType().FullName,
+                ExceptionMessage = exception.Message,
+                StackTrace = exception.StackTrace,
+                InnerException = exception.InnerException?.Message,
+                FailureCategory = failureCategory,
+                Timestamp = DateTime.UtcNow,
+                VideoId = job.VideoId,
+                UserId = job.UserId,
+                JobType = job.Type.ToString()
+            };
+
+            // Create original payload object
+            var originalPayload = new
+            {
+                job.Parameters,
+                job.Metadata,
+                job.VideoId,
+                job.UserId,
+                job.Type,
+                job.Priority
+            };
+
+            // Determine failure reason
+            var failureReason = failureCategory == FailureCategory.PermanentError.ToString()
+                ? "PermanentError"
+                : "MaxRetriesExceeded";
+
+            // Create dead letter job entry
+            var deadLetterJob = new DeadLetterJob
+            {
+                Id = Guid.NewGuid().ToString(),
+                JobId = job.Id,
+                FailureReason = failureReason,
+                FailureDetails = JsonSerializer.Serialize(failureDetails, new JsonSerializerOptions { WriteIndented = true }),
+                OriginalPayload = JsonSerializer.Serialize(originalPayload, new JsonSerializerOptions { WriteIndented = true }),
+                FailedAt = DateTime.UtcNow,
+                AttemptedRetries = job.RetryCount,
+                IsRequeued = false,
+                Notes = failureReason == "PermanentError"
+                    ? $"Job failed with permanent error (category: {failureCategory}). Error: {exception.Message}"
+                    : $"Job failed after {job.RetryCount} retry attempts (category: {failureCategory}). Last error: {exception.Message}",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _deadLetterJobRepository.AddAsync(deadLetterJob);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Successfully sent job {JobId} to Dead Letter Queue. DLQ ID: {DeadLetterJobId}, Reason: {Reason}",
+                job.Id, deadLetterJob.Id, failureReason);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send job {JobId} to Dead Letter Queue. This is a critical error.", job.Id);
+            // Don't throw - we don't want to fail the entire job processing because DLQ insertion failed
         }
     }
 }

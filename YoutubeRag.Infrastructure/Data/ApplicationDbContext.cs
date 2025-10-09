@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TranscriptSegment> TranscriptSegments { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<ProcessingConfiguration> ProcessingConfigurations { get; set; }
+    public DbSet<DeadLetterJob> DeadLetterJobs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new TranscriptSegmentConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
         modelBuilder.ApplyConfiguration(new ProcessingConfigurationConfiguration());
+        modelBuilder.ApplyConfiguration(new DeadLetterJobConfiguration());
 
         // Alternative: Apply all configurations automatically
         // modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
