@@ -43,5 +43,11 @@ public static class RecurringJobsSetup
             "cleanup-whisper-models",
             job => job.ExecuteAsync(CancellationToken.None),
             Cron.Daily(3, 0)); // 3:00 AM
+
+        // Clean up old temporary files (videos/audio) daily at 4 AM
+        recurringJobManager.AddOrUpdate<TempFileCleanupJob>(
+            "cleanup-temp-files",
+            job => job.ExecuteAsync(CancellationToken.None),
+            Cron.Daily(4, 0)); // 4:00 AM (after Whisper cleanup)
     }
 }

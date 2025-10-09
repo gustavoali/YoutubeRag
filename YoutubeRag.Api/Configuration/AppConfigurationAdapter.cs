@@ -26,4 +26,7 @@ public class AppConfigurationAdapter : IAppConfiguration
     public int MaxSegmentLength => _appSettings.MaxSegmentLength;
     public int MinSegmentLength => _appSettings.MinSegmentLength;
     public bool EnableAutoModelDowngrade => _appSettings.EnableAutoModelDowngrade;
+    public string? TempFilePath => _appSettings.TempFilePath;
+    public int? CleanupAfterHours => _appSettings.CleanupAfterHours;
+    public int? MinDiskSpaceGB => _appSettings.MinDiskSpaceGB;
 }

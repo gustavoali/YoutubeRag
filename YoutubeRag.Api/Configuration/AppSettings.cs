@@ -33,6 +33,11 @@ public class AppSettings
     public int MaxSegmentLength { get; set; } = 500;
     public int MinSegmentLength { get; set; } = 100;
 
+    // Temp file management settings
+    public string? TempFilePath { get; set; }
+    public int? CleanupAfterHours { get; set; } = 24;
+    public int? MinDiskSpaceGB { get; set; } = 5;
+
     // Helper properties
     public bool IsDevelopment => Environment.Equals("Development", StringComparison.OrdinalIgnoreCase);
     public bool IsProduction => Environment.Equals("Production", StringComparison.OrdinalIgnoreCase);

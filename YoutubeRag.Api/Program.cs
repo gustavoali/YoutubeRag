@@ -133,6 +133,12 @@ public partial class Program
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IAudioExtractionService,
         YoutubeRag.Infrastructure.Services.AudioExtractionService>();
 
+    // Register video download and temp file management services
+    builder.Services.AddSingleton<YoutubeRag.Application.Interfaces.ITempFileManagementService,
+        YoutubeRag.Infrastructure.Services.TempFileManagementService>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IVideoDownloadService,
+        YoutubeRag.Infrastructure.Services.VideoDownloadService>();
+
     // Register application processors
     builder.Services.AddScoped<YoutubeRag.Application.Services.TranscriptionJobProcessor>();
     builder.Services.AddScoped<YoutubeRag.Infrastructure.Services.EmbeddingJobProcessor>();
@@ -156,6 +162,9 @@ public partial class Program
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IWhisperModelService,
         YoutubeRag.Application.Services.WhisperModelManager>();
     builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.WhisperModelCleanupJob>();
+
+    // Register temp file cleanup job
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.TempFileCleanupJob>();
 
     // Register repositories
     builder.Services.AddScoped(typeof(YoutubeRag.Application.Interfaces.IRepository<>),

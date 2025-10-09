@@ -23,6 +23,7 @@ namespace YoutubeRag.Tests.Integration.Jobs;
 public class TranscriptionJobProcessorTests : IntegrationTestBase
 {
     private readonly Mock<IAudioExtractionService> _mockAudioExtractionService;
+    private readonly Mock<IVideoDownloadService> _mockVideoDownloadService;
     private readonly Mock<ITranscriptionService> _mockTranscriptionService;
     private readonly Mock<IAppConfiguration> _mockAppConfiguration;
     private readonly Mock<IProgressNotificationService> _mockProgressNotificationService;
@@ -30,12 +31,19 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
     public TranscriptionJobProcessorTests(CustomWebApplicationFactory<Program> factory) : base(factory)
     {
         _mockAudioExtractionService = new Mock<IAudioExtractionService>();
+        _mockVideoDownloadService = new Mock<IVideoDownloadService>();
         _mockTranscriptionService = new Mock<ITranscriptionService>();
         _mockAppConfiguration = new Mock<IAppConfiguration>();
         _mockProgressNotificationService = new Mock<IProgressNotificationService>();
 
         // Default mock configuration
         _mockAppConfiguration.Setup(x => x.AutoGenerateEmbeddings).Returns(false);
+
+        // Default mock for video download service (returns dummy video path)
+        _mockVideoDownloadService
+            .Setup(x => x.DownloadVideoAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string youtubeId, IProgress<double> progress, CancellationToken ct) =>
+                $"C:\\temp\\{youtubeId}_video.mp4");
     }
 
     private TranscriptionJobProcessor CreateProcessor()
@@ -45,6 +53,7 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
             Scope.ServiceProvider.GetRequiredService<IJobRepository>(),
             Scope.ServiceProvider.GetRequiredService<ITranscriptSegmentRepository>(),
             _mockAudioExtractionService.Object,
+            _mockVideoDownloadService.Object,
             _mockTranscriptionService.Object,
             Scope.ServiceProvider.GetRequiredService<ISegmentationService>(),
             Scope.ServiceProvider.GetRequiredService<IUnitOfWork>(),

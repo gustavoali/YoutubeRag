@@ -59,4 +59,19 @@ public interface IAppConfiguration
     /// Whether to automatically downgrade Whisper model on out-of-memory errors
     /// </summary>
     bool EnableAutoModelDowngrade { get; }
+
+    /// <summary>
+    /// Path to store temporary files (videos, intermediate audio)
+    /// </summary>
+    string? TempFilePath { get; }
+
+    /// <summary>
+    /// Hours after which temporary files should be cleaned up (default: 24)
+    /// </summary>
+    int? CleanupAfterHours { get; }
+
+    /// <summary>
+    /// Minimum disk space in GB to maintain (default: 5)
+    /// </summary>
+    int? MinDiskSpaceGB { get; }
 }

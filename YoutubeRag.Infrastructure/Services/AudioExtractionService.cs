@@ -157,6 +157,183 @@ public class AudioExtractionService : IAudioExtractionService
         }
     }
 
+    /// <summary>
+    /// Extracts Whisper-compatible audio (16kHz mono WAV) from video file using FFmpeg
+    /// </summary>
+    /// <param name="videoFilePath">Path to the video file</param>
+    /// <param name="videoId">Video ID for proper file naming and directory structure</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Path to the extracted WAV audio file</returns>
+    public async Task<string> ExtractWhisperAudioFromVideoAsync(
+        string videoFilePath,
+        string videoId,
+        CancellationToken cancellationToken = default)
+    {
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            _logger.LogInformation("Extracting Whisper-compatible audio from video: {VideoPath}", videoFilePath);
+
+            // Step 1: Validate input file
+            if (!File.Exists(videoFilePath))
+            {
+                throw new FileNotFoundException($"Video file not found: {videoFilePath}");
+            }
+
+            var videoFileInfo = new FileInfo(videoFilePath);
+            _logger.LogDebug("Video file size: {SizeMB:F2}MB", videoFileInfo.Length / (1024.0 * 1024.0));
+
+            // Step 2: Verify FFmpeg availability
+            if (!await IsFFmpegAvailableAsync())
+            {
+                throw new InvalidOperationException(
+                    "FFmpeg is required for Whisper audio extraction but is not available. " +
+                    "Please install FFmpeg and ensure it's in the system PATH.");
+            }
+
+            // Step 3: Generate output path (same directory as video)
+            var videoDir = Path.GetDirectoryName(videoFilePath);
+            if (string.IsNullOrEmpty(videoDir))
+            {
+                throw new InvalidOperationException($"Could not determine directory for video: {videoFilePath}");
+            }
+
+            var audioFileName = $"{videoId}_{DateTime.UtcNow:yyyyMMddHHmmss}.wav";
+            var audioPath = Path.Combine(videoDir, audioFileName);
+
+            _logger.LogDebug("Audio will be extracted to: {AudioPath}", audioPath);
+
+            // Step 4: Extract audio with Whisper-optimized parameters
+            await ExtractWhisperAudioUsingFFmpegAsync(videoFilePath, audioPath, cancellationToken);
+
+            // Step 5: Verify output file
+            if (!File.Exists(audioPath))
+            {
+                throw new InvalidOperationException(
+                    $"FFmpeg completed but audio file not found: {audioPath}");
+            }
+
+            var audioFileInfo = new FileInfo(audioPath);
+            if (audioFileInfo.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"FFmpeg completed but audio file is empty: {audioPath}");
+            }
+
+            var extractionDuration = (DateTime.UtcNow - startTime).TotalSeconds;
+
+            _logger.LogInformation(
+                "Whisper audio extracted successfully in {DurationSeconds:F2}s. " +
+                "Path: {AudioPath}, Size: {SizeMB:F2}MB",
+                extractionDuration, audioPath, audioFileInfo.Length / (1024.0 * 1024.0));
+
+            // Step 6: Delete video file (cleanup intermediate)
+            try
+            {
+                File.Delete(videoFilePath);
+                _logger.LogInformation("Deleted intermediate video file: {VideoPath}", videoFilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete video file: {VideoPath}. " +
+                    "File will be cleaned up by recurring job.", videoFilePath);
+                // Don't fail the operation if cleanup fails
+            }
+
+            return audioPath;
+        }
+        catch (Exception ex)
+        {
+            var failureDuration = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogError(ex,
+                "Failed to extract Whisper audio from video: {VideoPath} after {DurationSeconds:F2}s. " +
+                "Error: {ErrorMessage}",
+                videoFilePath, failureDuration, ex.Message);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Extracts audio from video file using FFmpeg with Whisper-optimized parameters
+    /// </summary>
+    /// <param name="inputPath">Path to input video file</param>
+    /// <param name="outputPath">Path to output WAV audio file</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    private async Task ExtractWhisperAudioUsingFFmpegAsync(
+        string inputPath,
+        string outputPath,
+        CancellationToken cancellationToken)
+    {
+        // Whisper-optimized FFmpeg parameters:
+        // -i: input file
+        // -vn: disable video (audio only)
+        // -acodec pcm_s16le: PCM 16-bit little-endian (required by Whisper)
+        // -ar 16000: 16kHz sample rate (Whisper optimal rate)
+        // -ac 1: mono audio (1 channel, Whisper doesn't need stereo)
+        // -y: overwrite output file if exists
+        var arguments = $"-i \"{inputPath}\" -vn -acodec pcm_s16le -ar 16000 -ac 1 \"{outputPath}\" -y";
+
+        _logger.LogDebug("Running FFmpeg with Whisper-optimized parameters: {Arguments}", arguments);
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            }
+        };
+
+        var startTime = DateTime.UtcNow;
+        process.Start();
+
+        // Read stderr for FFmpeg progress/errors
+        var stderr = await process.StandardError.ReadToEndAsync();
+
+        await process.WaitForExitAsync(cancellationToken);
+
+        var duration = (DateTime.UtcNow - startTime).TotalSeconds;
+
+        if (process.ExitCode != 0)
+        {
+            _logger.LogError(
+                "FFmpeg failed with exit code {ExitCode} after {DurationSeconds:F2}s. " +
+                "Input: {Input}, Output: {Output}, Error: {Error}",
+                process.ExitCode, duration, inputPath, outputPath, stderr);
+
+            throw new InvalidOperationException(
+                $"FFmpeg failed with exit code {process.ExitCode}. " +
+                $"This may indicate an invalid video file or codec issue. Error: {stderr}");
+        }
+
+        _logger.LogDebug(
+            "FFmpeg completed successfully in {DurationSeconds:F2}s. Output: {Output}",
+            duration, outputPath);
+
+        // Verify output file was created and has content
+        var fileInfo = new FileInfo(outputPath);
+        if (!fileInfo.Exists)
+        {
+            throw new InvalidOperationException(
+                $"FFmpeg completed but output file not found: {outputPath}");
+        }
+
+        if (fileInfo.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"FFmpeg completed but output file is empty: {outputPath}");
+        }
+
+        _logger.LogInformation(
+            "FFmpeg audio extraction successful. Output size: {SizeMB:F2}MB, Duration: {DurationSeconds:F2}s",
+            fileInfo.Length / (1024.0 * 1024.0), duration);
+    }
+
     /// <inheritdoc/>
     public async Task<bool> DeleteAudioFileAsync(string audioFilePath)
     {

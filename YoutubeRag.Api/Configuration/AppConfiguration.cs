@@ -36,4 +36,10 @@ public class AppConfiguration : IAppConfiguration
     public int MinSegmentLength => _appSettings.MinSegmentLength;
 
     public bool EnableAutoModelDowngrade => _appSettings.EnableAutoModelDowngrade;
+
+    public string? TempFilePath => _appSettings.TempFilePath;
+
+    public int? CleanupAfterHours => _appSettings.CleanupAfterHours;
+
+    public int? MinDiskSpaceGB => _appSettings.MinDiskSpaceGB;
 }
