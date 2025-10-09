@@ -32,6 +32,14 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         // Set environment to Testing to use appsettings.Testing.json
         builder.UseEnvironment("Testing");
 
+        // Configure simple logging for tests - avoids Serilog frozen logger issue
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
+            logging.SetMinimumLevel(LogLevel.Warning); // Reduce noise in test output
+        });
+
         builder.ConfigureTestServices(services =>
         {
             // Remove the existing DbContext registration
