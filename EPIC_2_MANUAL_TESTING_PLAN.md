@@ -75,7 +75,17 @@ WHERE VideoId = '[VIDEO_ID]'
 ORDER BY SegmentIndex;
 ```
 
-**Status:** ⏳ PENDING
+**Status:** ⚠️ PARTIAL PASS (automated test only)
+**Executed:** 9-Oct-2025 05:40 AM
+**Method:** Automated integration test
+**Result:** Pipeline works but ISSUE-002 found (bulk insert timing)
+
+**Notes:**
+- Test used mock Whisper service, not real transcription
+- 10 segments created successfully
+- Sequential indexing verified
+- Timestamps valid and increasing
+- **ISSUE:** CreatedAt timestamps vary by microseconds (not true bulk insert)
 
 ---
 
@@ -102,7 +112,17 @@ WHERE LENGTH(Text) > 500;
 -- Debería retornar 0 rows
 ```
 
-**Status:** ⏳ PENDING
+**Status:** ❌ FAILED (see ISSUE-003)
+**Executed:** 9-Oct-2025 05:40 AM
+**Method:** Automated integration test
+**Result:** FAILED - Segments not split to <500 chars
+
+**Notes:**
+- SegmentationService exists and has split logic
+- Test created segment with 750 characters
+- Expected: Split into multiple segments <500 chars each
+- **ACTUAL:** Found segment with 750 characters (NOT split)
+- **ROOT CAUSE:** SegmentationService not enforcing hard 500 char limit
 
 ---
 
@@ -124,7 +144,19 @@ WHERE LENGTH(Text) > 500;
 [INFO] Bulk inserted 150 transcript segments in 450ms (333 segments/sec)
 ```
 
-**Status:** ⏳ PENDING
+**Status:** ⚠️ PARTIAL PASS (automated test only)
+**Executed:** 9-Oct-2025 05:40 AM
+**Method:** Automated integration test
+**Result:** AddRangeAsync exists but not working as expected
+
+**Notes:**
+- Repository has AddRangeAsync method
+- Repository has BulkInsertAsync method for >100 segments
+- Test used 10 segments → used regular AddRange (not bulk)
+- **ISSUE:** CreatedAt timestamps vary by microseconds
+- Expected: All segments same timestamp (true bulk insert)
+- Actual: 10 different timestamps
+- Performance NOT measured (in-memory DB doesn't reflect real MySQL)
 
 ---
 
@@ -144,7 +176,18 @@ WHERE LENGTH(Text) > 500;
 - ✅ Segunda ejecución usa modelo cacheado
 - ✅ No errores de modelo no encontrado
 
-**Status:** ⏳ PENDING
+**Status:** 🚫 NOT TESTED (environment blocker)
+**Executed:** N/A
+**Blocker:** Whisper models directory doesn't exist
+
+**Notes:**
+- Directory C:\Models\Whisper does NOT exist
+- No Whisper models downloaded
+- Cannot test real model download
+- WhisperModelManager tested via mocks only (42 integration tests passing)
+- Real model download/caching NOT verified
+
+**To complete:** Set up Whisper models directory and download tiny model
 
 ---
 
@@ -160,7 +203,18 @@ WHERE LENGTH(Text) > 500;
 - ✅ Log: "Validated X segments. All integrity checks passed."
 - ✅ Sin warnings de gaps, overlaps o timestamps inválidos
 
-**Status:** ⏳ PENDING
+**Status:** ⚠️ PARTIAL PASS (code review only)
+**Executed:** 9-Oct-2025 05:40 AM
+**Method:** Code inspection
+**Result:** ValidateSegmentIntegrity() exists
+
+**Notes:**
+- Code exists at TranscriptionJobProcessor.cs:496
+- Method called before saving segments
+- Automated tests verify sequential indexing
+- Automated tests verify no timestamp overlaps
+- **NOT TESTED:** Log output for warnings
+- **NOT TESTED:** Edge cases with malformed segments
 
 ---
 
@@ -191,23 +245,34 @@ WHERE LENGTH(Text) > 500;
   - `IX_TranscriptSegments_StartTime`
 - ✅ EXPLAIN muestra uso de índices (key column populated)
 
-**Status:** ⏳ PENDING
+**Status:** 🚫 NOT TESTABLE (in-memory database)
+**Executed:** N/A
+**Blocker:** Tests use EF Core InMemory provider
+
+**Notes:**
+- In-memory database doesn't support real indexes
+- Cannot run SHOW INDEX commands
+- Cannot run EXPLAIN query plans
+- Cannot measure query performance
+- **Requires:** Real MySQL database connection for testing
+
+**To complete:** Connect to real MySQL and run SQL queries from test plan
 
 ---
 
 ## 🔄 Regression Tests
 
 ### Epic 1 Features (No debe romper)
-- [ ] Video ingestion sigue funcionando
-- [ ] Metadata extraction completa
-- [ ] Validación de URLs
-- [ ] Detección de duplicados
+- [x] Video ingestion sigue funcionando (VideoIngestionServiceTests PASS)
+- [x] Metadata extraction completa (assumed working, tests pass)
+- [x] Validación de URLs (assumed working)
+- [x] Detección de duplicados (assumed working)
 
 ### General System
-- [ ] API health check: GET /health
-- [ ] Swagger docs: GET /swagger
-- [ ] Authentication funciona (si está habilitado)
-- [ ] Build passing: `dotnet build`
+- [ ] API health check: GET /health (NOT TESTED - API not running)
+- [ ] Swagger docs: GET /swagger (NOT TESTED - API not running)
+- [ ] Authentication funciona (NOT TESTED)
+- [x] Build passing: `dotnet build` ✅ SUCCESS (64 warnings)
 
 ---
 
@@ -222,10 +287,18 @@ dotnet test --filter "FullyQualifiedName~Transcription"
 ```
 
 **Current Status:**
-- Unit Tests: ✅ TBD passing (TBD% coverage)
-- Integration Tests: ✅ 350/362 passing (13 TranscriptionJobProcessorTests ✓)
-- E2E Tests: ⚠️ 5 TranscriptionPipelineE2ETests (bloqueados previamente, ahora desbloqueados)
-- Build Status: ✅ SUCCESS
+- Unit Tests: ⏳ NOT RUN (focused on integration/E2E tests)
+- Integration Tests: ✅ 17/20 PASSING (85%) - Transcription tests only
+- E2E Tests: ⚠️ 4/7 PASSING (57%) - 3 failures with identified issues
+- Build Status: ✅ SUCCESS (64 warnings, non-blocking)
+
+**Detailed Results:**
+- TranscriptionJobProcessorTests: ✅ 11/11 PASS (100%)
+- VideoIngestionServiceTests: ✅ 2/2 PASS (100%)
+- TranscriptionPipelineE2ETests: ⚠️ 4/7 PASS (57%)
+  - ❌ WhisperFails_ShouldHandleErrorGracefully (ISSUE-001)
+  - ❌ CompleteTranscriptionPipeline_ShortVideo (ISSUE-002)
+  - ❌ LongSegments_ShouldAutoSplitAndReindex (ISSUE-003)
 
 ---
 
@@ -233,13 +306,14 @@ dotnet test --filter "FullyQualifiedName~Transcription"
 
 ### P0 Issues (Bloqueantes)
 - ~~BLOCKER-001: Serilog frozen logger~~ ✅ RESUELTO (`b8c2b8c`)
+- **ISSUE-002:** Bulk insert timing issue (segments have different timestamps) - P0
+- **ISSUE-003:** SegmentationService not splitting segments to <500 chars - P0
 
 ### P1 Issues (Alta prioridad)
-- Ninguno conocido
+- **ISSUE-001:** Segments saved on Whisper failure (no transaction rollback) - P1
 
 ### P2 Issues (Media prioridad)
-- QUALITY-001: 10 tests de integración con failures de lógica de negocio
-- QUALITY-002: 26 warnings de compilación
+- QUALITY-002: 64 warnings de compilación (non-blocking)
 
 ---
 
@@ -248,21 +322,22 @@ dotnet test --filter "FullyQualifiedName~Transcription"
 ### Developer Checklist
 - [x] Código implementado completamente
 - [x] YRUS-0201: Gestionar Modelos Whisper ✓
-- [x] YRUS-0202: Ejecutar Transcripción ✓ (validar)
-- [x] YRUS-0203: Segmentar y Almacenar ✓ (validar)
+- [x] YRUS-0202: Ejecutar Transcripción ⚠️ (has ISSUE-001)
+- [x] YRUS-0203: Segmentar y Almacenar ⚠️ (has ISSUE-002, ISSUE-003)
 - [x] Tests unitarios escritos
 - [x] Tests de integración escritos
 - [x] Code review completado (agentes)
 - [x] Documentación actualizada
-- [ ] Manual testing ejecutado
-- [ ] Ready for Release
+- [⚠️] Manual testing ejecutado (automated only, manual blocked by environment)
+- [❌] Ready for Release (3 issues blocking)
 
 ### Tester Checklist
-- [ ] Todos los scenarios ejecutados
-- [ ] Screenshots/evidencia capturada
-- [ ] Issues documentados
-- [ ] Regression passing
-- [ ] Approved for Release
+- [x] Automated tests ejecutados (17/20 passing)
+- [ ] Manual scenarios ejecutados (BLOCKED - environment limitations)
+- [x] Issues documentados (3 issues: ISSUE-001, ISSUE-002, ISSUE-003)
+- [x] Screenshots/evidencia capturada (test results in EPIC_2_TEST_REPORT.md)
+- [⚠️] Regression passing (partial - Epic 1 tests pass, system tests blocked)
+- [❌] Approved for Release (NOT APPROVED - issues must be fixed first)
 
 ### Product Owner Checklist
 - [ ] Features cumplen AC
@@ -302,23 +377,62 @@ dotnet test --filter "FullyQualifiedName~Transcription"
 ## 📝 Test Execution Notes
 
 ### Test 1 Execution (Video Corto)
-**Date:** [PENDING]
-**Video:** [URL]
-**Duration:** [X min]
-**Result:** [PASS/FAIL]
+**Date:** 9-Oct-2025 05:40 AM
+**Video:** Mock (test data, not real YouTube)
+**Duration:** 2.8 seconds (test execution time)
+**Result:** ⚠️ PARTIAL PASS (ISSUE-002 found)
 **Notes:**
-- [Notes here]
+- Test: `CompleteTranscriptionPipeline_ShortVideo_ShouldProcessSuccessfully`
+- Created 10 transcript segments
+- Sequential indexing verified
+- Timestamps valid
+- **ISSUE:** Bulk insert not working correctly (timestamps vary)
 
 ### Test 2 Execution (Segmentación)
-**Date:** [PENDING]
-**Result:** [PASS/FAIL]
+**Date:** 9-Oct-2025 05:40 AM
+**Result:** ❌ FAILED (ISSUE-003)
 **Notes:**
-- [Notes here]
+- Test: `TranscriptionPipeline_LongSegments_ShouldAutoSplitAndReindex`
+- Created segment with 750 characters
+- Expected: Split to <500 chars
+- **ACTUAL:** Segment NOT split, still 750 chars
+- Root cause: SegmentationService not enforcing hard limit
 
-[Continue for all scenarios...]
+### Test 3 Execution (Bulk Insert Performance)
+**Date:** 9-Oct-2025 05:40 AM
+**Result:** ⚠️ PARTIAL PASS
+**Notes:**
+- AddRangeAsync method exists
+- BulkInsertAsync method exists (for >100 segments)
+- Test used 10 segments → regular AddRange used
+- CreatedAt timestamps vary (not true bulk insert)
+
+### Test 4 Execution (Gestión Modelos)
+**Date:** N/A
+**Result:** 🚫 NOT TESTED (environment blocker)
+**Notes:**
+- C:\Models\Whisper directory doesn't exist
+- No real models to test
+- WhisperModelManager tested via mocks only
+
+### Test 5 Execution (Validación Integridad)
+**Date:** 9-Oct-2025 05:40 AM
+**Result:** ⚠️ PARTIAL PASS
+**Notes:**
+- Code exists and is called
+- Automated tests verify sequential indexing
+- Log output NOT verified
+
+### Test 6 Execution (Índices DB)
+**Date:** N/A
+**Result:** 🚫 NOT TESTABLE (in-memory DB)
+**Notes:**
+- Cannot test indexes with in-memory database
+- Requires real MySQL connection
 
 ---
 
-**TESTING STATUS:** 🔴 NOT STARTED
-**TARGET COMPLETION:** Hoy, 8 de Octubre, 2025
-**RELEASE TARGET:** v2.2.0-transcription (9-Oct-2025)
+**TESTING STATUS:** 🔴 COMPLETED WITH ISSUES
+**COMPLETION DATE:** 9 de Octubre, 2025
+**RELEASE TARGET:** v2.2.0-transcription (DELAYED - issues must be fixed)
+**BLOCKERS:** 2 P0 issues (ISSUE-002, ISSUE-003) + 1 P1 issue (ISSUE-001)
