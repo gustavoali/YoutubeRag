@@ -272,13 +272,13 @@ public partial class Program
         // });
 
         // Register SignalR progress notification service
-        builder.Services.AddSingleton<YoutubeRag.Application.Interfaces.Services.IProgressNotificationService,
+        builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IProgressNotificationService,
             YoutubeRag.Api.Services.SignalRProgressNotificationService>();
     }
     else
     {
         // Use mock notification service if WebSockets are disabled
-        builder.Services.AddSingleton<YoutubeRag.Application.Interfaces.Services.IProgressNotificationService,
+        builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IProgressNotificationService,
             YoutubeRag.Infrastructure.Services.Mock.MockProgressNotificationService>();
     }
     // Authentication - Always configure, but with different behavior based on EnableAuth
