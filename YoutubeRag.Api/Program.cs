@@ -121,6 +121,10 @@ public partial class Program
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.Services.IVideoIngestionService,
         YoutubeRag.Application.Services.VideoIngestionService>();
 
+    // DEVOPS-002: Register cross-platform path service (singleton for caching)
+    builder.Services.AddSingleton<YoutubeRag.Application.Interfaces.IPathProvider,
+        YoutubeRag.Infrastructure.Services.PathService>();
+
     // Register infrastructure services
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IVideoProcessingService,
         YoutubeRag.Infrastructure.Services.VideoProcessingService>();

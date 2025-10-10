@@ -5,6 +5,7 @@ using Moq;
 using Xunit;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.DTOs.Transcription;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Jobs;
@@ -29,6 +30,9 @@ public class MultiStagePipelineTests : IntegrationTestBase
     private readonly Mock<IAudioExtractionService> _mockAudioExtractionService;
     private readonly Mock<ITranscriptionService> _mockTranscriptionService;
     private readonly Mock<IBackgroundJobClient> _mockBackgroundJobClient;
+
+    // Counter to track background job enqueue calls (since we can't verify extension methods with Moq)
+    private int _enqueueCallCount;
 
     public MultiStagePipelineTests(CustomWebApplicationFactory<Program> factory) : base(factory)
     {
@@ -61,9 +65,28 @@ public class MultiStagePipelineTests : IntegrationTestBase
             .ReturnsAsync((string videoPath, string videoId, CancellationToken ct) =>
                 $"C:\\temp\\{videoId}_whisper.wav");
 
+        _mockAudioExtractionService
+            .Setup(x => x.GetAudioInfoAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AudioInfo
+            {
+                Duration = TimeSpan.FromMinutes(5),
+                FileSizeBytes = 5242880,
+                SampleRate = 16000,
+                Channels = 1
+            });
+
+        // Setup the underlying Create method (which Enqueue extension method calls)
+        // to track invocations, since Moq cannot verify extension methods
         _mockBackgroundJobClient
-            .Setup(x => x.Enqueue(It.IsAny<System.Linq.Expressions.Expression<Action>>()))
-            .Returns("hangfire-job-id");
+            .Setup(x => x.Create(It.IsAny<Hangfire.Common.Job>(), It.IsAny<Hangfire.States.IState>()))
+            .Returns("hangfire-job-id")
+            .Callback(() => _enqueueCallCount++);
+    }
+
+    // Reset the enqueue counter before each test
+    private void ResetEnqueueCounter()
+    {
+        _enqueueCallCount = 0;
     }
 
     #region Pipeline Stage Progression Tests
@@ -72,6 +95,7 @@ public class MultiStagePipelineTests : IntegrationTestBase
     public async Task Pipeline_DownloadStage_CompletesAndEnqueuesAudioExtraction()
     {
         // Arrange
+        ResetEnqueueCounter();
         await AuthenticateAsync();
         var video = TestDataGenerator.GenerateVideo(AuthenticatedUserId);
         video.Status = VideoStatus.Pending;
@@ -115,10 +139,8 @@ public class MultiStagePipelineTests : IntegrationTestBase
         var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(updatedJob.Metadata!);
         metadata.Should().ContainKey("VideoFilePath");
 
-        // Verify next stage was enqueued
-        _mockBackgroundJobClient.Verify(
-            x => x.Enqueue(It.IsAny<System.Linq.Expressions.Expression<Action<AudioExtractionJobProcessor>>>()),
-            Times.Once);
+        // Verify next stage was enqueued (check via callback counter since Moq can't verify extension methods)
+        _enqueueCallCount.Should().Be(1, "AudioExtraction stage should have been enqueued once");
     }
 
     [Fact]
@@ -255,6 +277,7 @@ public class MultiStagePipelineTests : IntegrationTestBase
     public async Task Pipeline_DownloadStage_Fails_DoesNotEnqueueNextStage()
     {
         // Arrange
+        ResetEnqueueCounter();
         await AuthenticateAsync();
         var video = TestDataGenerator.GenerateVideo(AuthenticatedUserId);
         await DbContext.Videos.AddAsync(video);
@@ -297,10 +320,8 @@ public class MultiStagePipelineTests : IntegrationTestBase
         updatedJob.CurrentStage.Should().Be(PipelineStage.Download);
         updatedJob.ErrorMessage.Should().Contain("Network timeout");
 
-        // Verify AudioExtraction was NOT enqueued
-        _mockBackgroundJobClient.Verify(
-            x => x.Enqueue(It.IsAny<System.Linq.Expressions.Expression<Action<AudioExtractionJobProcessor>>>()),
-            Times.Never);
+        // Verify AudioExtraction was NOT enqueued (check via callback counter since Moq can't verify extension methods)
+        _enqueueCallCount.Should().Be(0, "AudioExtraction stage should not have been enqueued when download fails");
     }
 
     [Fact]

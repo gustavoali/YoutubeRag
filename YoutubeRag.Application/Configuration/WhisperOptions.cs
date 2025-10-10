@@ -12,9 +12,12 @@ public class WhisperOptions
 
     /// <summary>
     /// The directory path where Whisper models are stored.
-    /// Default: C:\Models\Whisper
+    /// DEVOPS-002: Use IPathProvider service for cross-platform path resolution.
+    /// Windows default: C:\Models\Whisper
+    /// Linux default: /tmp/whisper-models
+    /// Container default: /app/models
     /// </summary>
-    public string ModelsPath { get; set; } = "C:\\Models\\Whisper";
+    public string ModelsPath { get; set; } = "/app/models";
 
     /// <summary>
     /// The default model to use. Can be "auto" for automatic selection based on duration,

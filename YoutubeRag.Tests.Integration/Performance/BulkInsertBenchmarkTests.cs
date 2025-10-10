@@ -96,6 +96,17 @@ public class BulkInsertBenchmarkTests : IntegrationTestBase
         _output.WriteLine($"Generated {segments.Count} segments");
         _output.WriteLine($"Total text size: {segments.Sum(s => s.Text.Length)} characters");
 
+        // Clear any existing segments for this video (test isolation)
+        var existingSegments = await DbContext.TranscriptSegments
+            .Where(s => s.VideoId == video.Id)
+            .ToListAsync();
+        if (existingSegments.Any())
+        {
+            DbContext.TranscriptSegments.RemoveRange(existingSegments);
+            await DbContext.SaveChangesAsync();
+            _output.WriteLine($"Cleared {existingSegments.Count} existing segments for test isolation");
+        }
+
         var repository = Scope.ServiceProvider.GetRequiredService<ITranscriptSegmentRepository>();
 
         // Act - Measure bulk insert performance
@@ -284,6 +295,17 @@ public class BulkInsertBenchmarkTests : IntegrationTestBase
         _output.WriteLine($"Generated {segments.Count} segments");
         _output.WriteLine($"Total text size: {segments.Sum(s => s.Text.Length)} characters");
         _output.WriteLine($"Estimated video duration: {segments.Last().EndTime / 60.0:F2} minutes");
+
+        // Clear any existing segments for this video (test isolation)
+        var existingSegments = await DbContext.TranscriptSegments
+            .Where(s => s.VideoId == video.Id)
+            .ToListAsync();
+        if (existingSegments.Any())
+        {
+            DbContext.TranscriptSegments.RemoveRange(existingSegments);
+            await DbContext.SaveChangesAsync();
+            _output.WriteLine($"Cleared {existingSegments.Count} existing segments for test isolation");
+        }
 
         var repository = Scope.ServiceProvider.GetRequiredService<ITranscriptSegmentRepository>();
 

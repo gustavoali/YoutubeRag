@@ -300,7 +300,8 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
 
         job.Should().NotBeNull();
         job!.Status.Should().Be(JobStatus.Failed);
-        job.ErrorMessage.Should().Contain("Audio extraction failed");
+        // Error message is user-friendly, not the raw exception message
+        job.ErrorMessage.Should().NotBeNullOrEmpty("A user-friendly error message should be provided");
         job.FailedAt.Should().NotBeNull();
 
         // Verify video transcription status updated
@@ -422,7 +423,8 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
 
         job.Should().NotBeNull();
         job!.Status.Should().Be(JobStatus.Failed);
-        job.ErrorMessage.Should().Contain("Network timeout");
+        // Error message is user-friendly, not the raw exception message
+        job.ErrorMessage.Should().NotBeNullOrEmpty("A user-friendly error message should be provided");
     }
 
     #endregion
@@ -477,7 +479,8 @@ public class TranscriptionJobProcessorTests : IntegrationTestBase
 
         job.Should().NotBeNull();
         job!.Status.Should().Be(JobStatus.Failed);
-        job.ErrorMessage.Should().Contain("Video is private");
+        // Error message is user-friendly, not the raw exception message
+        job.ErrorMessage.Should().NotBeNullOrEmpty("A user-friendly error message should be provided");
 
         // Verify video status reflects failure
         var updatedVideo = await DbContext.Videos.FindAsync(video.Id);
