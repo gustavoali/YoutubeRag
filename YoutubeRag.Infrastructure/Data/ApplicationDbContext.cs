@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<ProcessingConfiguration> ProcessingConfigurations { get; set; }
     public DbSet<DeadLetterJob> DeadLetterJobs { get; set; }
+    public DbSet<UserNotification> UserNotifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +33,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
         modelBuilder.ApplyConfiguration(new ProcessingConfigurationConfiguration());
         modelBuilder.ApplyConfiguration(new DeadLetterJobConfiguration());
+        modelBuilder.ApplyConfiguration(new UserNotificationConfiguration());
 
         // Alternative: Apply all configurations automatically
         // modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

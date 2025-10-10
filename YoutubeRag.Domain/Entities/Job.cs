@@ -13,6 +13,22 @@ public class Job : BaseEntity
     public string? StageProgressJson { get; set; }
     public string? Result { get; set; }
     public string? ErrorMessage { get; set; }
+
+    // Enhanced error tracking (GAP-2)
+    /// <summary>
+    /// Full stack trace of the last error (for debugging)
+    /// </summary>
+    public string? ErrorStackTrace { get; set; }
+
+    /// <summary>
+    /// Type of the exception that caused the error (e.g., "HttpRequestException")
+    /// </summary>
+    public string? ErrorType { get; set; }
+
+    /// <summary>
+    /// Pipeline stage where the job failed
+    /// </summary>
+    public PipelineStage? FailedStage { get; set; }
     public string? Parameters { get; set; }
     public string? Metadata { get; set; }
     public DateTime? StartedAt { get; set; }
