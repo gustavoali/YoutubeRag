@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using YoutubeRag.Domain.Entities;
+using YoutubeRag.Infrastructure.Data.Configurations;
 
 namespace YoutubeRag.Infrastructure.Data;
 
@@ -12,98 +13,30 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Video> Videos { get; set; }
     public DbSet<Job> Jobs { get; set; }
+    public DbSet<JobStage> JobStages { get; set; }
     public DbSet<TranscriptSegment> TranscriptSegments { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<ProcessingConfiguration> ProcessingConfigurations { get; set; }
+    public DbSet<DeadLetterJob> DeadLetterJobs { get; set; }
+    public DbSet<UserNotification> UserNotifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // User Configuration
-        modelBuilder.Entity<User>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.GoogleId).IsUnique();
-            entity.Property(e => e.Id).HasMaxLength(36);
-            entity.Property(e => e.Email).HasMaxLength(255);
-            entity.Property(e => e.Name).HasMaxLength(100);
-        });
+        // Apply all entity configurations from the assembly
+        modelBuilder.ApplyConfiguration(new UserConfiguration());
+        modelBuilder.ApplyConfiguration(new VideoConfiguration());
+        modelBuilder.ApplyConfiguration(new JobConfiguration());
+        modelBuilder.ApplyConfiguration(new JobStageConfiguration());
+        modelBuilder.ApplyConfiguration(new TranscriptSegmentConfiguration());
+        modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new ProcessingConfigurationConfiguration());
+        modelBuilder.ApplyConfiguration(new DeadLetterJobConfiguration());
+        modelBuilder.ApplyConfiguration(new UserNotificationConfiguration());
 
-        // Video Configuration
-        modelBuilder.Entity<Video>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.YoutubeId).IsUnique();
-            entity.Property(e => e.Id).HasMaxLength(36);
-            entity.Property(e => e.UserId).HasMaxLength(36);
-            entity.Property(e => e.Title).HasMaxLength(255);
-            entity.Property(e => e.YoutubeId).HasMaxLength(50);
-            entity.Property(e => e.Status).HasConversion<string>();
-
-            entity.HasOne(e => e.User)
-                  .WithMany(e => e.Videos)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Job Configuration
-        modelBuilder.Entity<Job>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasMaxLength(36);
-            entity.Property(e => e.UserId).HasMaxLength(36);
-            entity.Property(e => e.VideoId).HasMaxLength(36);
-            entity.Property(e => e.JobType).HasMaxLength(100);
-            entity.Property(e => e.Status).HasConversion<string>();
-
-            entity.HasOne(e => e.User)
-                  .WithMany(e => e.Jobs)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Video)
-                  .WithMany(e => e.Jobs)
-                  .HasForeignKey(e => e.VideoId)
-                  .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        // TranscriptSegment Configuration
-        modelBuilder.Entity<TranscriptSegment>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasMaxLength(36);
-            entity.Property(e => e.VideoId).HasMaxLength(36);
-            entity.Property(e => e.Language).HasMaxLength(10);
-
-            entity.HasOne(e => e.Video)
-                  .WithMany(e => e.TranscriptSegments)
-                  .HasForeignKey(e => e.VideoId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(e => new { e.VideoId, e.SegmentIndex });
-        });
-
-        // RefreshToken Configuration
-        modelBuilder.Entity<RefreshToken>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasMaxLength(36);
-            entity.Property(e => e.UserId).HasMaxLength(36);
-            entity.Property(e => e.Token).HasMaxLength(255);
-            entity.Property(e => e.IpAddress).HasMaxLength(45);
-            entity.Property(e => e.DeviceInfo).HasMaxLength(255);
-
-            entity.HasOne(e => e.User)
-                  .WithMany(e => e.RefreshTokens)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(e => e.Token).IsUnique();
-        });
-
-        // Global query filters for soft delete (if needed in the future)
-        // modelBuilder.Entity<User>().HasQueryFilter(e => !e.IsDeleted);
+        // Alternative: Apply all configurations automatically
+        // modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }
 
     public override int SaveChanges()
@@ -127,10 +60,22 @@ public class ApplicationDbContext : DbContext
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    // CRITICAL FIX (ISSUE-002): Only set timestamps if not already set
+                    // This allows callers to set shared timestamps for bulk insert operations
+                    // while maintaining automatic timestamp behavior for entities that don't set them
+                    if (entry.Entity.CreatedAt == default)
+                    {
+                        entry.Entity.CreatedAt = DateTime.UtcNow;
+                    }
+
+                    if (entry.Entity.UpdatedAt == default)
+                    {
+                        entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    }
                     break;
+
                 case EntityState.Modified:
+                    // Always update UpdatedAt for modifications
                     entry.Entity.UpdatedAt = DateTime.UtcNow;
                     break;
             }

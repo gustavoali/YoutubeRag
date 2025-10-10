@@ -1,0 +1,126 @@
+# Docker Compose for CI/CD Testing
+# Optimized for GitHub Actions and local testing
+version: '3.8'
+
+services:
+  # MySQL Database for Integration Tests
+  mysql-test:
+    image: mysql:8.0
+    container_name: youtuberag-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: test_password
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptest_password"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    networks:
+      - test-network
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=200
+
+  # Redis Cache for Integration Tests
+  redis-test:
+    image: redis:7-alpine
+    container_name: youtuberag-redis-test
+    command: redis-server --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - test-network
+
+  # Test Runner Service (Optional - for containerized testing)
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: youtuberag-test-runner
+    environment:
+      # Database connection
+      ConnectionStrings__DefaultConnection: "Server=mysql-test;Port=3306;Database=test_db;User=root;Password=test_password;AllowPublicKeyRetrieval=True;"
+
+      # Redis connection
+      ConnectionStrings__Redis: "redis-test:6379"
+
+      # JWT
+      JwtSettings__SecretKey: "TestSecretKeyForJWTTokenGenerationMinimum256Bits!"
+      JwtSettings__ExpirationInMinutes: "60"
+
+      # Application Settings
+      ASPNETCORE_ENVIRONMENT: "Testing"
+      AppSettings__ProcessingMode: "Mock"
+      AppSettings__EnableRealProcessing: "false"
+
+      # Processing
+      Processing__TempFilePath: "/tmp/youtuberag"
+      Processing__FFmpegPath: "ffmpeg"
+
+      # Whisper
+      Whisper__ModelsPath: "/tmp/whisper-models"
+      Whisper__DefaultModel: "auto"
+
+      # Cleanup
+      Cleanup__JobRetentionDays: "1"
+      Cleanup__NotificationRetentionDays: "1"
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    volumes:
+      - ./TestResults:/test-results
+    profiles:
+      - test
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 5 &&
+        echo 'Running tests...' &&
+        dotnet test --configuration Release --logger trx --results-directory /test-results
+      "
+
+  # Database Migration Runner (for CI/CD)
+  migration-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+    container_name: youtuberag-migration-test
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=mysql-test;Port=3306;Database=test_db;User=root;Password=test_password;AllowPublicKeyRetrieval=True;"
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    profiles:
+      - migration
+
+volumes:
+  mysql_test_data:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge
+    name: youtuberag-test-network

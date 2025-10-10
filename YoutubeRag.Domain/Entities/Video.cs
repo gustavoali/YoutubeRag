@@ -1,56 +1,39 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Domain.Entities;
 
 public class Video : BaseEntity
 {
-    [Required]
-    [StringLength(255)]
     public string Title { get; set; } = string.Empty;
-
-    [Column(TypeName = "TEXT")]
     public string? Description { get; set; }
-
-    [StringLength(50)]
-    public string? YoutubeId { get; set; }
-
-    [StringLength(500)]
-    public string? YoutubeUrl { get; set; }
-
-    [StringLength(500)]
+    public string? YouTubeId { get; set; }
+    public string? Url { get; set; }
     public string? OriginalUrl { get; set; }
-
-    [StringLength(500)]
     public string? ThumbnailUrl { get; set; }
-
     public TimeSpan? Duration { get; set; }
     public int? ViewCount { get; set; }
     public int? LikeCount { get; set; }
-
-    [Required]
+    public DateTime? PublishedAt { get; set; }
+    public string? ChannelId { get; set; }
+    public string? ChannelTitle { get; set; }
+    public string? CategoryId { get; set; }
+    public List<string> Tags { get; set; } = new();
     public VideoStatus Status { get; set; } = VideoStatus.Pending;
-
-    [StringLength(500)]
+    public VideoStatus ProcessingStatus { get; set; } = VideoStatus.Pending;
+    public TranscriptionStatus TranscriptionStatus { get; set; } = TranscriptionStatus.NotStarted;
     public string? FilePath { get; set; }
-
-    [StringLength(500)]
     public string? AudioPath { get; set; }
-
-    [Column(TypeName = "TEXT")]
     public string? ProcessingLog { get; set; }
-
-    [Column(TypeName = "TEXT")]
     public string? ErrorMessage { get; set; }
-
     public int ProcessingProgress { get; set; } = 0;
-
-    [Column(TypeName = "JSON")]
     public string? Metadata { get; set; }
+    public string? Language { get; set; }
+    public DateTime? TranscribedAt { get; set; }
+    public EmbeddingStatus EmbeddingStatus { get; set; } = EmbeddingStatus.None;
+    public DateTime? EmbeddedAt { get; set; }
+    public int EmbeddingProgress { get; set; } = 0;
 
     // Foreign Key
-    [Required]
     public string UserId { get; set; } = string.Empty;
 
     // Navigation Properties

@@ -1,0 +1,543 @@
+[xUnit.net 00:00:13.11]     YoutubeRag.Tests.Integration.Performance.BulkInsertBenchmarkTests.BulkInsert_100Segments_ShouldCompleteUnder2Seconds [FAIL]
+[14:57:45 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'Job' entity with key '{Id: 09013fd0-2793-4169-818b-95c020e4b29c}' tracked by 'ApplicationDbContext' changed state from 'Modified' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.Update[10005]
+      SaveChanges completed for 'ApplicationDbContext' with 1 entities written to the database.
+dbug: YoutubeRag.Infrastructure.Repositories.UnitOfWork[0]
+      Saved 1 changes to the database
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_5_bbaeefdb-c30a-4d93-828d-d6ab54ce18e0 
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+[14:57:45 INF] 
+Starting YouTube RAG API
+info: YoutubeRag.Infrastructure.Jobs.AudioExtractionJobProcessor[0]
+      Extracting audio from video C:\temp\video.mp4 for job 09013fd0-2793-4169-818b-95c020e4b29c
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.Update[10004]
+      SaveChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+[xUnit.net 00:00:13.11]       Expected savedSegments.Count to be 100 because All segments should be saved, but found 112 (difference of 12).
+info: YoutubeRag.Application.Services.UserService[0]
+      Getting stats for user: 5f84898e-a659-42a1-abb0-2da68170ffa0
+[xUnit.net 00:00:13.16]       Stack Trace:
+[xUnit.net 00:00:13.16]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:13.16]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+--
+[xUnit.net 00:00:19.95]     YoutubeRag.Tests.Integration.Jobs.DeadLetterQueueTests.DeadLetterQueue_GetStatistics_ShouldReturnCorrectCounts [FAIL]
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'TranscriptSegment.Video' for entity with key '{Id: cc3354dc-0936-4478-b113-0f0af2b1b514}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'TranscriptSegment' entity with key '{Id: cc3354dc-0936-4478-b113-0f0af2b1b514}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'TranscriptSegment.Video' for entity with key '{Id: 9cdabe4e-52f1-41d9-9927-e6e3d9b38273}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'TranscriptSegment' entity with key '{Id: 9cdabe4e-52f1-41d9-9927-e6e3d9b38273}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'TranscriptSegment.Video' for entity with key '{Id: 72ab3a2a-6869-4e59-b06c-413b9d8f4322}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'TranscriptSegment' entity with key '{Id: 72ab3a2a-6869-4e59-b06c-413b9d8f4322}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'TranscriptSegment.Video' for entity with key '{Id: 34207352-4dc0-454e-b0c3-24f8a203af4a}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'TranscriptSegment' entity with key '{Id: 34207352-4dc0-454e-b0c3-24f8a203af4a}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'TranscriptSegment.Video' for entity with key '{Id: 57999804-fe69-4bc5-b8a9-57c88b092a80}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'TranscriptSegment' entity with key '{Id: 57999804-fe69-4bc5-b8a9-57c88b092a80}'.
+[xUnit.net 00:00:19.95]       Expected statistics["MaxRetriesExceeded"] to be 2, but found 5.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'TranscriptSegment.Video' for entity with key '{Id: 9d63a7d4-e2df-493d-96df-206334b37346}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'TranscriptSegment' entity with key '{Id: 9d63a7d4-e2df-493d-96df-206334b37346}'.
+[xUnit.net 00:00:19.95]       Stack Trace:
+[xUnit.net 00:00:19.95]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:19.95]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+[xUnit.net 00:00:19.95]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+[xUnit.net 00:00:19.95]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+--
+[xUnit.net 00:00:20.31]     YoutubeRag.Tests.Integration.Jobs.TranscriptionJobProcessorTests.ProcessTranscriptionJobAsync_PermanentFailure_DoesNotRetryIndefinitely [FAIL]
+[xUnit.net 00:00:20.31]       Expected job.ErrorMessage "We encountered an unexpected error while processing your video. Our team has been notified." to contain "Video is private".
+[xUnit.net 00:00:20.31]       Stack Trace:
+[xUnit.net 00:00:20.31]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:20.31]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+[xUnit.net 00:00:20.31]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+[xUnit.net 00:00:20.31]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:20.32]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:20.32]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+[xUnit.net 00:00:20.32]            at FluentAssertions.Primitives.StringAssertions`1.Contain(String expected, String because, Object[] becauseArgs)
+[xUnit.net 00:00:20.32]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Jobs\TranscriptionJobProcessorTests.cs(480,0): at YoutubeRag.Tests.Integration.Jobs.TranscriptionJobProcessorTests.ProcessTranscriptionJobAsync_PermanentFailure_DoesNotRetryIndefinitely()
+[xUnit.net 00:00:20.32]         --- End of stack trace from previous location ---
+[14:57:52 INF] 
+Starting YouTube RAG API
+info: Microsoft.EntityFrameworkCore.Update[30100]
+      Saved 500 entities to in-memory store.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: 0c838718-83cb-4cc1-9959-04196b5b8d15}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: 33a6540a-9b17-4109-a2c9-73f106676573}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: cea872d9-af00-4f91-962a-98ecaec4e313}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: 9c5a768f-1bc8-4496-ae72-ecf9dbad2cf0}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: 55058b80-db2e-4cf7-859b-2a62ea6fab9a}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: a5e1efbf-ee61-4311-99ac-d5021ee7024d}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: d9d4a269-1206-454b-99b1-a58558553307}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+--
+[xUnit.net 00:00:20.88]     YoutubeRag.Tests.Integration.E2E.TranscriptionPipelineE2ETests.TranscriptionPipeline_WhisperFails_ShouldHandleErrorGracefully [FAIL]
+[xUnit.net 00:00:20.88]       Expected job.ErrorMessage "AI transcription model is temporarily unavailable. Retrying automatically..." to contain "Whisper transcription failed: Out of memory error" because Error message should be saved.
+[xUnit.net 00:00:20.88]       Stack Trace:
+[xUnit.net 00:00:20.88]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:20.88]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+[xUnit.net 00:00:20.88]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+[xUnit.net 00:00:20.88]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:20.88]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:20.88]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+[xUnit.net 00:00:20.88]            at FluentAssertions.Primitives.StringAssertions`1.Contain(String expected, String because, Object[] becauseArgs)
+[xUnit.net 00:00:20.88]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\E2E\TranscriptionPipelineE2ETests.cs(548,0): at YoutubeRag.Tests.Integration.E2E.TranscriptionPipelineE2ETests.TranscriptionPipeline_WhisperFails_ShouldHandleErrorGracefully()
+[xUnit.net 00:00:20.88]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:20.88]       Output:
+[xUnit.net 00:00:20.88]         === Test 4: Error Handling - Whisper Fails ===
+[xUnit.net 00:00:20.88]         Created test video: 5327fccf-86fc-4634-9c56-6604c8d16e2a
+[xUnit.net 00:00:20.88]         ✓ Pipeline returned false on error
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_2_6dd82822-4115-47f0-b5a3-28ed2677586e 
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'RefreshToken' entity with key '{Id: da5fa403-f864-448e-9592-3231e15989f0}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10805]
+      The navigation 'RefreshToken.User' for entity with key '{Id: da5fa403-f864-448e-9592-3231e15989f0}' was detected as changed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'User' entity with key '{Id: 0e09d60e-ec7b-4901-a0b3-94b2b5e3dc3f}'.
+[14:57:53 INF] 
+Starting YouTube RAG API
+  Con error YoutubeRag.Tests.Integration.Jobs.TranscriptionJobProcessorTests.ProcessTranscriptionJobAsync_PermanentFailure_DoesNotRetryIndefinitely [6 s]
+  Mensaje de error:
+   Expected job.ErrorMessage "We encountered an unexpected error while processing your video. Our team has been notified." to contain "Video is private".
+  Seguimiento de la pila:
+     at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+--
+[xUnit.net 00:00:21.68]     YoutubeRag.Tests.Integration.Services.MetadataExtractionServiceTests.ExtractMetadataAsync_NetworkTimeout_LogsError [FAIL]
+dbug: Microsoft.EntityFrameworkCore.Update[10002]
+[xUnit.net 00:00:21.69]       Assert.Throws() Failure: No exception was thrown
+      A cascade state change of an entity of type 'TranscriptSegment' with key '{Id: df116605-f87b-43dd-9a54-8168bb64f5b0}' to 'Deleted' occurred due to the deletion of its parent entity of type 'Video' with key '{Id: b05e0997-4fc1-47a5-a46d-43f9f7baadc8}'.
+[xUnit.net 00:00:21.69]       Expected: typeof(System.Threading.Tasks.TaskCanceledException)
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: df116605-f87b-43dd-9a54-8168bb64f5b0}' tracked by 'ApplicationDbContext' changed state from 'Unchanged' to 'Deleted'.
+[xUnit.net 00:00:21.69]       Stack Trace:
+[xUnit.net 00:00:21.69]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Services\MetadataExtractionServiceTests.cs(183,0): at YoutubeRag.Tests.Integration.Services.MetadataExtractionServiceTests.ExtractMetadataAsync_NetworkTimeout_LogsError()
+[xUnit.net 00:00:21.69]         --- End of stack trace from previous location ---
+dbug: Microsoft.EntityFrameworkCore.Update[10002]
+      A cascade state change of an entity of type 'TranscriptSegment' with key '{Id: bb44728f-5135-42a7-8e8a-0399587f73e4}' to 'Deleted' occurred due to the deletion of its parent entity of type 'Video' with key '{Id: b05e0997-4fc1-47a5-a46d-43f9f7baadc8}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: bb44728f-5135-42a7-8e8a-0399587f73e4}' tracked by 'ApplicationDbContext' changed state from 'Unchanged' to 'Deleted'.
+dbug: Microsoft.EntityFrameworkCore.Update[10002]
+      A cascade state change of an entity of type 'TranscriptSegment' with key '{Id: e9790965-a9b2-4750-a486-a84bf5418284}' to 'Deleted' occurred due to the deletion of its parent entity of type 'Video' with key '{Id: b05e0997-4fc1-47a5-a46d-43f9f7baadc8}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: e9790965-a9b2-4750-a486-a84bf5418284}' tracked by 'ApplicationDbContext' changed state from 'Unchanged' to 'Deleted'.
+[14:57:53 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.Update[10002]
+      A cascade state change of an entity of type 'TranscriptSegment' with key '{Id: 6ccd0866-29ce-466c-8b7b-edc695cd5bc2}' to 'Deleted' occurred due to the deletion of its parent entity of type 'Video' with key '{Id: b05e0997-4fc1-47a5-a46d-43f9f7baadc8}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: 6ccd0866-29ce-466c-8b7b-edc695cd5bc2}' tracked by 'ApplicationDbContext' changed state from 'Unchanged' to 'Deleted'.
+dbug: Microsoft.EntityFrameworkCore.Update[10002]
+      A cascade state change of an entity of type 'TranscriptSegment' with key '{Id: 6d173bf7-31ae-4281-a334-4bb0c30bbdcc}' to 'Deleted' occurred due to the deletion of its parent entity of type 'Video' with key '{Id: b05e0997-4fc1-47a5-a46d-43f9f7baadc8}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'TranscriptSegment' entity with key '{Id: 6d173bf7-31ae-4281-a334-4bb0c30bbdcc}' tracked by 'ApplicationDbContext' changed state from 'Unchanged' to 'Deleted'.
+dbug: Microsoft.EntityFrameworkCore.Update[10002]
+      A cascade state change of an entity of type 'TranscriptSegment' with key '{Id: e99d1227-bff3-4a84-ba48-de07aea9471d}' to 'Deleted' occurred due to the deletion of its parent entity of type 'Video' with key '{Id: b05e0997-4fc1-47a5-a46d-43f9f7baadc8}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+--
+[xUnit.net 00:00:23.38]     YoutubeRag.Tests.Integration.Services.MetadataExtractionServiceTests.ExtractMetadataAsync_WithTimeout_ThrowsAppropriateException [FAIL]
+[xUnit.net 00:00:23.38]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:23.38]       Expected: typeof(System.Threading.Tasks.TaskCanceledException)
+[xUnit.net 00:00:23.38]       Stack Trace:
+[xUnit.net 00:00:23.42]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Services\MetadataExtractionServiceTests.cs(165,0): at YoutubeRag.Tests.Integration.Services.MetadataExtractionServiceTests.ExtractMetadataAsync_WithTimeout_ThrowsAppropriateException()
+[xUnit.net 00:00:23.42]         --- End of stack trace from previous location ---
+[14:57:55 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+Database initialization skipped - Storage Mode: Memory
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_14_4d351455-1c11-4a09-9a0b-6e429f7f16a8 
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.Extensions.Hosting.Internal.Host[2]
+      Hosting started
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_11_46e168ab-66ef-46fd-92b1-6e43453b7d6d 
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.Update[10004]
+      SaveChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+--
+[xUnit.net 00:00:23.86]     YoutubeRag.Tests.Integration.Services.MetadataExtractionServiceTests.ExtractMetadataAsync_WithCancellationToken_RespectsTimeout [FAIL]
+[xUnit.net 00:00:23.86]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:23.86]       Expected: typeof(System.Threading.Tasks.TaskCanceledException)
+[xUnit.net 00:00:23.86]       Stack Trace:
+[xUnit.net 00:00:23.86]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Services\MetadataExtractionServiceTests.cs(505,0): at YoutubeRag.Tests.Integration.Services.MetadataExtractionServiceTests.ExtractMetadataAsync_WithCancellationToken_RespectsTimeout()
+[xUnit.net 00:00:23.86]         --- End of stack trace from previous location ---
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+--
+[xUnit.net 00:00:25.65]     YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.DownloadJobProcessor_FailedDownload_UpdatesJobStatus [FAIL]
+[xUnit.net 00:00:25.65]       System.NotSupportedException : Unsupported expression: x => x.Enqueue<AudioExtractionJobProcessor>(It.IsAny<Expression<Action<AudioExtractionJobProcessor>>>())
+[xUnit.net 00:00:25.65]       Extension methods (here: BackgroundJobClientExtensions.Enqueue) may not be used in setup / verification expressions.
+[xUnit.net 00:00:25.65]       Stack Trace:
+[xUnit.net 00:00:25.65]         /_/src/Moq/Guard.cs(87,0): at Moq.Guard.IsOverridable(MethodInfo method, Expression expression)
+[xUnit.net 00:00:25.65]         /_/src/Moq/MethodExpectation.cs(87,0): at Moq.MethodExpectation..ctor(LambdaExpression expression, MethodInfo method, IReadOnlyList`1 arguments, Boolean exactGenericTypeArguments, Boolean skipMatcherInitialization, Boolean allowNonOverridable)
+[xUnit.net 00:00:25.65]         /_/src/Moq/ExpressionExtensions.cs(235,0): at Moq.ExpressionExtensions.<Split>g__Split|5_0(Expression e, Expression& r, MethodExpectation& p, Boolean assignment, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:25.65]         /_/src/Moq/ExpressionExtensions.cs(149,0): at Moq.ExpressionExtensions.Split(LambdaExpression expression, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:25.65]         /_/src/Moq/Mock.cs(434,0): at Moq.Mock.GetMatchingInvocationCount(Mock mock, LambdaExpression expression, List`1& invocationsToBeMarkedAsVerified)
+[xUnit.net 00:00:25.65]         /_/src/Moq/Mock.cs(320,0): at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage)
+[xUnit.net 00:00:25.65]         /_/src/Moq/Mock`1.cs(840,0): at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times)
+[xUnit.net 00:00:25.65]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Jobs\JobProcessorTests.cs(184,0): at YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.DownloadJobProcessor_FailedDownload_UpdatesJobStatus()
+[xUnit.net 00:00:25.65]         --- End of stack trace from previous location ---
+[14:57:57 INF] 
+Starting YouTube RAG API
+Database initialization skipped - Storage Mode: Memory
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_3_e60c62eb-90ea-44fe-8263-b8acfabba330 
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.Extensions.Hosting.Internal.Host[2]
+      Hosting started
+Database initialization skipped - Storage Mode: Memory
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_13_56892ec3-ea02-4bb0-8a8b-f5d895b3d75b 
+--
+[xUnit.net 00:00:29.50]     YoutubeRag.Tests.Integration.Performance.BulkInsertBenchmarkTests.BulkInsert_1000Segments_ShouldCompleteUnder10Seconds [FAIL]
+[xUnit.net 00:00:29.50]       Expected savedCount to be 1000 because All segments should be saved, but found 1013 (difference of 13).
+[xUnit.net 00:00:29.50]       Stack Trace:
+[xUnit.net 00:00:29.50]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:29.50]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+[xUnit.net 00:00:29.50]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+[xUnit.net 00:00:29.50]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:29.50]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:29.50]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+[xUnit.net 00:00:29.50]            at FluentAssertions.Numeric.NumericAssertionsBase`3.Be(T expected, String because, Object[] becauseArgs)
+Database initialization skipped - Storage Mode: Memory
+[xUnit.net 00:00:29.50]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Performance\BulkInsertBenchmarkTests.cs(313,0): at YoutubeRag.Tests.Integration.Performance.BulkInsertBenchmarkTests.BulkInsert_1000Segments_ShouldCompleteUnder10Seconds()
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+[xUnit.net 00:00:29.50]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:29.50]       Output:
+[xUnit.net 00:00:29.50]         === Benchmark 3: 1000 Segments ===
+[xUnit.net 00:00:29.50]         Target: <10000ms
+[xUnit.net 00:00:29.50]         Generated 1000 segments
+[xUnit.net 00:00:29.50]         Total text size: 261890 characters
+[xUnit.net 00:00:29.50]         Estimated video duration: 158,33 minutes
+[xUnit.net 00:00:29.50]         Starting bulk insert...
+[xUnit.net 00:00:29.50]         Elapsed time: 943ms (0,94s)
+[xUnit.net 00:00:29.50]         Throughput: 1060,45 segments/second
+[xUnit.net 00:00:29.50]         ✓ Performance target met: 943ms < 10000ms
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'DeadLetterJob' entity with key '{Id: 56dcd4c5-207a-4c9d-95e4-9ff9bcbcd957}' tracked by 'ApplicationDbContext' changed state from 'Unchanged' to 'Modified'.
+--
+[xUnit.net 00:00:32.13]     YoutubeRag.Tests.Integration.Controllers.AuthControllerTests.RefreshToken_WithValidRefreshToken_ReturnsNewTokens [FAIL]
+[xUnit.net 00:00:32.13]       Expected response.StatusCode to be HttpStatusCode.OK {value: 200}, but found HttpStatusCode.Unauthorized {value: 401}.
+[xUnit.net 00:00:32.13]       Stack Trace:
+[xUnit.net 00:00:32.13]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:32.13]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+[xUnit.net 00:00:32.13]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+[xUnit.net 00:00:32.14]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:32.14]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:32.14]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+[xUnit.net 00:00:32.14]            at FluentAssertions.Primitives.EnumAssertions`2.Be(TEnum expected, String because, Object[] becauseArgs)
+[xUnit.net 00:00:32.14]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Controllers\AuthControllerTests.cs(260,0): at YoutubeRag.Tests.Integration.Controllers.AuthControllerTests.RefreshToken_WithValidRefreshToken_ReturnsNewTokens()
+[xUnit.net 00:00:32.14]         --- End of stack trace from previous location ---
+[14:58:04 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'User' entity with key '{Id: 7cb82185-c251-45e1-b782-6faed04677b2}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.Update[10004]
+      SaveChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+info: Microsoft.EntityFrameworkCore.Update[30100]
+      Saved 1 entities to in-memory store.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10807]
+      The 'User' entity with key '{Id: 7cb82185-c251-45e1-b782-6faed04677b2}' tracked by 'ApplicationDbContext' changed state from 'Added' to 'Unchanged'.
+dbug: Microsoft.EntityFrameworkCore.Update[10005]
+--
+[xUnit.net 00:00:32.96]     YoutubeRag.Tests.Integration.Jobs.DeadLetterQueueTests.DeadLetterQueue_GetByDateRange_FiltersCorrectly [FAIL]
+[14:58:05 INF] 
+Starting YouTube RAG API
+[xUnit.net 00:00:32.96]       Expected recentFailures to contain 2 item(s), but found 15: YoutubeRag.Domain.Entities.DeadLetterJob
+[xUnit.net 00:00:32.97]           {
+[xUnit.net 00:00:32.97]               AttemptedRetries = 0,
+[xUnit.net 00:00:32.97]               CreatedAt = <2025-10-10 17:58:04.9232313>,
+[xUnit.net 00:00:32.97]               FailedAt = <2025-10-10 17:58:04.9232312>,
+[xUnit.net 00:00:32.97]               FailureDetails = <null>,
+[xUnit.net 00:00:32.97]               FailureReason = "PermanentError",
+[xUnit.net 00:00:32.97]               Id = "84510ce6-5334-43e7-b5db-2a607c5723e6",
+[xUnit.net 00:00:32.97]               IsRequeued = False,
+[xUnit.net 00:00:32.97]               Job = YoutubeRag.Domain.Entities.Job
+[xUnit.net 00:00:32.97]               {
+[xUnit.net 00:00:32.97]                   CompletedAt = <null>,
+[xUnit.net 00:00:32.97]                   CreatedAt = <2025-10-10 17:58:04.9227846>,
+[xUnit.net 00:00:32.97]                   CurrentStage = PipelineStage.None {value: 0},
+[xUnit.net 00:00:32.97]                   ErrorMessage = <null>,
+[xUnit.net 00:00:32.97]                   ErrorStackTrace = <null>,
+[xUnit.net 00:00:32.97]                   ErrorType = <null>,
+[xUnit.net 00:00:32.97]                   FailedAt = <null>,
+[xUnit.net 00:00:32.97]                   FailedStage = <null>,
+[xUnit.net 00:00:32.97]                   HangfireJobId = <null>,
+[xUnit.net 00:00:32.97]                   Id = "1a58dc51-6447-4130-be7b-de30d2e452ca",
+[xUnit.net 00:00:32.97]                   LastFailureCategory = <null>,
+[xUnit.net 00:00:32.97]                   MaxRetries = 3,
+[xUnit.net 00:00:32.97]                   Metadata = <null>,
+[xUnit.net 00:00:32.97]                   NextRetryAt = <null>,
+[xUnit.net 00:00:32.97]                   Parameters = <null>,
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+[xUnit.net 00:00:32.97]                   Priority = 1,
+--
+[xUnit.net 00:00:33.06]     YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.AudioExtractionJobProcessor_SuccessfulExtraction_EnqueuesTranscription [FAIL]
+[xUnit.net 00:00:33.06]       System.NotSupportedException : Unsupported expression: x => x.Enqueue<TranscriptionStageJobProcessor>(It.IsAny<Expression<Action<TranscriptionStageJobProcessor>>>())
+[xUnit.net 00:00:33.06]       Extension methods (here: BackgroundJobClientExtensions.Enqueue) may not be used in setup / verification expressions.
+[xUnit.net 00:00:33.06]       Stack Trace:
+[xUnit.net 00:00:33.06]         /_/src/Moq/Guard.cs(87,0): at Moq.Guard.IsOverridable(MethodInfo method, Expression expression)
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_16_ac450906-6f8b-4e1d-b3d1-0a554a9a5a92 
+[xUnit.net 00:00:33.06]         /_/src/Moq/MethodExpectation.cs(87,0): at Moq.MethodExpectation..ctor(LambdaExpression expression, MethodInfo method, IReadOnlyList`1 arguments, Boolean exactGenericTypeArguments, Boolean skipMatcherInitialization, Boolean allowNonOverridable)
+[xUnit.net 00:00:33.06]         /_/src/Moq/ExpressionExtensions.cs(235,0): at Moq.ExpressionExtensions.<Split>g__Split|5_0(Expression e, Expression& r, MethodExpectation& p, Boolean assignment, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:33.06]         /_/src/Moq/ExpressionExtensions.cs(149,0): at Moq.ExpressionExtensions.Split(LambdaExpression expression, Boolean allowNonOverridableLastProperty)
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+[xUnit.net 00:00:33.06]         /_/src/Moq/Mock.cs(434,0): at Moq.Mock.GetMatchingInvocationCount(Mock mock, LambdaExpression expression, List`1& invocationsToBeMarkedAsVerified)
+[xUnit.net 00:00:33.06]         /_/src/Moq/Mock.cs(320,0): at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage)
+[xUnit.net 00:00:33.06]         /_/src/Moq/Mock`1.cs(840,0): at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times)
+[xUnit.net 00:00:33.06]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Jobs\JobProcessorTests.cs(300,0): at YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.AudioExtractionJobProcessor_SuccessfulExtraction_EnqueuesTranscription()
+[xUnit.net 00:00:33.06]         --- End of stack trace from previous location ---
+[14:58:05 INF] 
+Starting YouTube RAG API
+Database initialization skipped - Storage Mode: Memory
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_3_e60c62eb-90ea-44fe-8263-b8acfabba330 
+Database initialization skipped - Storage Mode: Memory
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.Extensions.Hosting.Internal.Host[2]
+      Hosting started
+--
+[xUnit.net 00:00:34.94]     YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.DownloadJobProcessor_SuccessfulDownload_EnqueuesAudioExtraction [FAIL]
+[xUnit.net 00:00:34.94]       System.NotSupportedException : Unsupported expression: x => x.Enqueue<AudioExtractionJobProcessor>(It.IsAny<Expression<Action<AudioExtractionJobProcessor>>>())
+[xUnit.net 00:00:34.94]       Extension methods (here: BackgroundJobClientExtensions.Enqueue) may not be used in setup / verification expressions.
+[xUnit.net 00:00:34.94]       Stack Trace:
+[xUnit.net 00:00:34.94]         /_/src/Moq/Guard.cs(87,0): at Moq.Guard.IsOverridable(MethodInfo method, Expression expression)
+[xUnit.net 00:00:34.94]         /_/src/Moq/MethodExpectation.cs(87,0): at Moq.MethodExpectation..ctor(LambdaExpression expression, MethodInfo method, IReadOnlyList`1 arguments, Boolean exactGenericTypeArguments, Boolean skipMatcherInitialization, Boolean allowNonOverridable)
+[xUnit.net 00:00:34.94]         /_/src/Moq/ExpressionExtensions.cs(235,0): at Moq.ExpressionExtensions.<Split>g__Split|5_0(Expression e, Expression& r, MethodExpectation& p, Boolean assignment, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:34.95]         /_/src/Moq/ExpressionExtensions.cs(149,0): at Moq.ExpressionExtensions.Split(LambdaExpression expression, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:34.95]         /_/src/Moq/Mock.cs(434,0): at Moq.Mock.GetMatchingInvocationCount(Mock mock, LambdaExpression expression, List`1& invocationsToBeMarkedAsVerified)
+[xUnit.net 00:00:34.95]         /_/src/Moq/Mock.cs(320,0): at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage)
+[xUnit.net 00:00:34.95]         /_/src/Moq/Mock`1.cs(840,0): at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times)
+[xUnit.net 00:00:34.95]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Jobs\JobProcessorTests.cs(133,0): at YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.DownloadJobProcessor_SuccessfulDownload_EnqueuesAudioExtraction()
+warn: YoutubeRag.Api.Authentication.MockAuthenticationHandler[0]
+      MockAuthenticationHandler is active - This should only be used in Development/Test environments
+[xUnit.net 00:00:34.95]         --- End of stack trace from previous location ---
+info: YoutubeRag.Api.Authentication.MockAuthenticationHandler[0]
+      Mock authentication successful with JWT - UserId: caa5e721-a54a-4d1e-a1b3-e3a9363d4023
+info: YoutubeRag.Api.Authentication.MockAuthenticationHandler[0]
+      Mock authentication successful - Token: eyJhbGciOi...
+dbug: YoutubeRag.Api.Authentication.MockAuthenticationHandler[8]
+      AuthenticationScheme: Mock was successfully authenticated.
+[14:58:07 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_3_e60c62eb-90ea-44fe-8263-b8acfabba330 
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+--
+[xUnit.net 00:00:36.70]     YoutubeRag.Tests.Integration.Jobs.TranscriptionJobProcessorTests.ProcessTranscriptionJobAsync_TransientFailure_UpdatesJobWithErrorMessage [FAIL]
+[xUnit.net 00:00:36.70]       Expected job.ErrorMessage "We encountered an unexpected error while processing your video. Our team has been notified." to contain "Network timeout".
+[xUnit.net 00:00:36.70]       Stack Trace:
+[xUnit.net 00:00:36.70]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:36.70]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+[xUnit.net 00:00:36.71]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+[xUnit.net 00:00:36.71]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:36.71]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+[xUnit.net 00:00:36.71]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)
+[xUnit.net 00:00:36.71]            at FluentAssertions.Primitives.StringAssertions`1.Contain(String expected, String because, Object[] becauseArgs)
+[xUnit.net 00:00:36.71]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Jobs\TranscriptionJobProcessorTests.cs(425,0): at YoutubeRag.Tests.Integration.Jobs.TranscriptionJobProcessorTests.ProcessTranscriptionJobAsync_TransientFailure_UpdatesJobWithErrorMessage()
+[xUnit.net 00:00:36.71]         --- End of stack trace from previous location ---
+[14:58:08 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_15_97ddca77-8ee0-4b86-8fab-a2c59126dd3a 
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10806]
+      Context 'ApplicationDbContext' started tracking 'User' entity with key '{Id: 5e6d83f3-deda-42f5-9a0f-ad3e8f9a2692}'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.Update[10004]
+      SaveChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10800]
+      DetectChanges starting for 'ApplicationDbContext'.
+dbug: Microsoft.EntityFrameworkCore.ChangeTracking[10801]
+      DetectChanges completed for 'ApplicationDbContext'.
+info: Microsoft.EntityFrameworkCore.Update[30100]
+--
+[xUnit.net 00:00:38.18]     YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.TranscriptionStageJobProcessor_SuccessfulTranscription_EnqueuesSegmentation [FAIL]
+[xUnit.net 00:00:38.18]       System.NotSupportedException : Unsupported expression: x => x.Enqueue<SegmentationJobProcessor>(It.IsAny<Expression<Action<SegmentationJobProcessor>>>())
+[xUnit.net 00:00:38.18]       Extension methods (here: BackgroundJobClientExtensions.Enqueue) may not be used in setup / verification expressions.
+[xUnit.net 00:00:38.18]       Stack Trace:
+[xUnit.net 00:00:38.18]         /_/src/Moq/Guard.cs(87,0): at Moq.Guard.IsOverridable(MethodInfo method, Expression expression)
+[xUnit.net 00:00:38.18]         /_/src/Moq/MethodExpectation.cs(87,0): at Moq.MethodExpectation..ctor(LambdaExpression expression, MethodInfo method, IReadOnlyList`1 arguments, Boolean exactGenericTypeArguments, Boolean skipMatcherInitialization, Boolean allowNonOverridable)
+[xUnit.net 00:00:38.18]         /_/src/Moq/ExpressionExtensions.cs(235,0): at Moq.ExpressionExtensions.<Split>g__Split|5_0(Expression e, Expression& r, MethodExpectation& p, Boolean assignment, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:38.18]         /_/src/Moq/ExpressionExtensions.cs(149,0): at Moq.ExpressionExtensions.Split(LambdaExpression expression, Boolean allowNonOverridableLastProperty)
+[xUnit.net 00:00:38.18]         /_/src/Moq/Mock.cs(434,0): at Moq.Mock.GetMatchingInvocationCount(Mock mock, LambdaExpression expression, List`1& invocationsToBeMarkedAsVerified)
+[xUnit.net 00:00:38.18]         /_/src/Moq/Mock.cs(320,0): at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage)
+[xUnit.net 00:00:38.18]         /_/src/Moq/Mock`1.cs(840,0): at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times)
+[xUnit.net 00:00:38.18]         C:\agents\youtube_rag_net\YoutubeRag.Tests.Integration\Jobs\JobProcessorTests.cs(488,0): at YoutubeRag.Tests.Integration.Jobs.JobProcessorTests.TranscriptionStageJobProcessor_SuccessfulTranscription_EnqueuesSegmentation()
+[xUnit.net 00:00:38.18]         --- End of stack trace from previous location ---
+[14:58:10 INF] 
+Starting YouTube RAG API
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_3_e60c62eb-90ea-44fe-8263-b8acfabba330 
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: YoutubeRag.Infrastructure.Services.LocalEmbeddingService[0]
+      Successfully generated embedding of dimension 384
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 8.0.11 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.InMemory:8.0.11' with options: SensitiveDataLoggingEnabled StoreName=InMemoryDb_4_3ea54ca9-8efd-497e-b1e1-c87097bd12f0 
+info: YoutubeRag.Application.Services.SearchService[0]
+      Search completed: learning - Found 0 results
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+[14:58:10 INF] 
+Starting YouTube RAG API
+--
+[xUnit.net 00:00:39.82]     YoutubeRag.Tests.Integration.E2E.VideoIngestionPipelineE2ETests.IngestVideo_ShortVideo_ShouldCreateVideoAndJobInDatabase [FAIL]
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+[xUnit.net 00:00:39.82]       Expected finalJobCount to be 1 because Job count should increase by 1, but found 2.
+[xUnit.net 00:00:39.82]       Stack Trace:
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+[xUnit.net 00:00:39.82]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:39.82]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+[xUnit.net 00:00:39.82]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+[xUnit.net 00:00:39.82]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+[xUnit.net 00:00:39.82]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+--
+[xUnit.net 00:00:40.68]     YoutubeRag.Tests.Integration.Jobs.TranscriptionJobProcessorTests.ProcessTranscriptionJobAsync_Failure_TransitionsToPendingToRunningToFailed [FAIL]
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+[xUnit.net 00:00:40.68]       Expected job.ErrorMessage "We encountered an unexpected error while processing your video. Our team has been notified." to contain "Audio extraction failed".
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+[xUnit.net 00:00:40.68]       Stack Trace:
+[xUnit.net 00:00:40.68]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)
+[xUnit.net 00:00:40.68]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+      Hosting stopped
+dbug: Microsoft.Extensions.Hosting.Internal.Host[3]
+      Hosting stopping
+dbug: Microsoft.Extensions.Hosting.Internal.Host[4]
+[xUnit.net 00:00:40.68]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)
+      Hosting stopped
+[xUnit.net 00:00:40.68]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)

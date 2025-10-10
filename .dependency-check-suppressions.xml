@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+  <!--
+    Suppress false positives and known issues
+    Format:
+    - filePath: Pattern to match dependency file
+    - cve: Specific CVE to suppress
+    - Optionally add notes explaining why suppressed
+  -->
+
+  <!-- Example: Suppress specific CVE for a package -->
+  <!--
+  <suppress>
+    <notes>
+      This vulnerability does not affect our usage of the package.
+      We only use feature X, which is not vulnerable.
+    </notes>
+    <packageUrl regex="true">^pkg:nuget/PackageName@.*$</packageUrl>
+    <cve>CVE-2023-12345</cve>
+  </suppress>
+  -->
+
+  <!-- Suppress development-only dependencies -->
+  <suppress base="true">
+    <notes>
+      Development and test dependencies are not deployed to production.
+    </notes>
+    <packageUrl regex="true">^pkg:nuget/(xunit|Moq|FluentAssertions|Bogus|Microsoft\.NET\.Test\.Sdk)@.*$</packageUrl>
+  </suppress>
+
+  <!-- Suppress coverlet (code coverage tool) -->
+  <suppress base="true">
+    <notes>
+      Code coverage tool used only in development/CI, not in production.
+    </notes>
+    <packageUrl regex="true">^pkg:nuget/coverlet\..*@.*$</packageUrl>
+  </suppress>
+
+  <!-- Add project-specific suppressions below as needed -->
+
+</suppressions>

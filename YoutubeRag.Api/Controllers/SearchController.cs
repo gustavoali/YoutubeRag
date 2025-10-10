@@ -1,5 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.DTOs.Search;
+using YoutubeRag.Application.Exceptions;
+using YoutubeRag.Api.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -9,6 +14,16 @@ namespace YoutubeRag.Api.Controllers;
 [Authorize]
 public class SearchController : ControllerBase
 {
+    private readonly ISearchService _searchService;
+    private readonly AppSettings _appSettings;
+
+    public SearchController(
+        ISearchService searchService,
+        IOptions<AppSettings> appSettings)
+    {
+        _searchService = searchService;
+        _appSettings = appSettings.Value;
+    }
     /// <summary>
     /// Semantic search across video transcripts
     /// </summary>
@@ -20,40 +35,47 @@ public class SearchController : ControllerBase
             return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Query is required" } });
         }
 
-        // Mock semantic search results
-        var results = new[]
+        // Validate MaxResults (limit)
+        if (request.MaxResults <= 0 || request.MaxResults > 100)
         {
-            new {
-                video_id = "1",
-                video_title = "Sample Video 1",
-                segment_id = "seg_1",
-                segment_text = "This is a relevant segment that matches your query about YouTube RAG",
-                start_time = 45.5,
-                end_time = 52.3,
-                relevance_score = 0.92,
-                youtube_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                thumbnail_url = "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
-            },
-            new {
-                video_id = "2",
-                video_title = "Sample Video 2",
-                segment_id = "seg_2",
-                segment_text = "Another relevant segment discussing video processing and analysis",
-                start_time = 120.1,
-                end_time = 128.7,
-                relevance_score = 0.87,
-                youtube_url = "https://www.youtube.com/watch?v=oHg5SJYRHA0",
-                thumbnail_url = "https://img.youtube.com/vi/oHg5SJYRHA0/maxresdefault.jpg"
-            }
-        };
+            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "MaxResults must be between 1 and 100" } });
+        }
 
-        return Ok(new {
-            query = request.Query,
-            results,
-            total_results = results.Length,
-            search_type = "semantic",
-            processing_time_ms = 245
-        });
+        try
+        {
+            var startTime = DateTime.UtcNow;
+
+            var searchDto = new SearchRequestDto(
+                Query: request.Query,
+                Limit: request.MaxResults,
+                Offset: 0,
+                MinScore: request.MinRelevanceScore
+            );
+
+            var searchResults = await _searchService.SearchAsync(searchDto);
+
+            var processingTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            return Ok(new {
+                query = searchResults.Query,
+                results = searchResults.Results,
+                total_results = searchResults.TotalResults,
+                search_type = "semantic",
+                processing_time_ms = Math.Round(processingTime, 1),
+                mode = _appSettings.UseRealProcessing ? "real" : "mock",
+                limit = searchResults.Limit,
+                offset = searchResults.Offset
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new {
+                error = new {
+                    code = "SEARCH_ERROR",
+                    message = ex.Message
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -130,27 +152,36 @@ public class SearchController : ControllerBase
     /// Get search suggestions/autocomplete
     /// </summary>
     [HttpGet("suggestions")]
-    public async Task<ActionResult> GetSearchSuggestions(string q, int limit = 10)
+    public async Task<ActionResult> GetSearchSuggestions(string? query, string? q, int limit = 10)
     {
-        if (string.IsNullOrEmpty(q))
+        // Support both 'query' and 'q' parameters for compatibility
+        var searchQuery = query ?? q;
+
+        if (string.IsNullOrEmpty(searchQuery))
         {
-            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Query parameter 'q' is required" } });
+            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Query parameter 'query' or 'q' is required" } });
         }
 
-        // Mock search suggestions
-        var suggestions = new[]
+        // Validate limit parameter
+        if (limit <= 0 || limit > 100)
         {
-            "YouTube API integration",
-            "YouTube video processing",
-            "YouTube transcript analysis",
-            "YouTube data extraction"
-        }.Take(limit);
+            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Limit must be between 1 and 100" } });
+        }
 
-        return Ok(new {
-            query = q,
-            suggestions,
-            count = suggestions.Count()
-        });
+        try
+        {
+            var suggestions = await _searchService.GetSearchSuggestionsAsync(searchQuery, limit);
+
+            return Ok(new {
+                query = searchQuery,
+                suggestions,
+                count = suggestions.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
+        }
     }
 
     /// <summary>
@@ -173,12 +204,102 @@ public class SearchController : ControllerBase
             total_searches = trending.Sum(t => t.count)
         });
     }
+
+    /// <summary>
+    /// Get user's search history
+    /// </summary>
+    [HttpGet("history")]
+    public async Task<ActionResult> GetSearchHistory(int page = 1, int pageSize = 20)
+    {
+        try
+        {
+            // Mock search history data
+            var searchHistory = new[]
+            {
+                new {
+                    id = "search_hist_1",
+                    query = "microservices architecture patterns",
+                    search_type = "semantic",
+                    results_count = 18,
+                    timestamp = DateTime.UtcNow.AddHours(-1),
+                    processing_time_ms = 312
+                },
+                new {
+                    id = "search_hist_2",
+                    query = "docker kubernetes deployment",
+                    search_type = "advanced",
+                    results_count = 24,
+                    timestamp = DateTime.UtcNow.AddHours(-3),
+                    processing_time_ms = 456
+                },
+                new {
+                    id = "search_hist_3",
+                    query = "react hooks tutorial",
+                    search_type = "keyword",
+                    results_count = 15,
+                    timestamp = DateTime.UtcNow.AddHours(-5),
+                    processing_time_ms = 189
+                },
+                new {
+                    id = "search_hist_4",
+                    query = "graphql vs rest api",
+                    search_type = "semantic",
+                    results_count = 22,
+                    timestamp = DateTime.UtcNow.AddHours(-7),
+                    processing_time_ms = 278
+                },
+                new {
+                    id = "search_hist_5",
+                    query = "typescript best practices",
+                    search_type = "advanced",
+                    results_count = 31,
+                    timestamp = DateTime.UtcNow.AddDays(-1),
+                    processing_time_ms = 523
+                }
+            };
+
+            // Apply pagination
+            var skip = (page - 1) * pageSize;
+            var paginatedHistory = searchHistory.Skip(skip).Take(pageSize).ToArray();
+
+            return Ok(new {
+                history = paginatedHistory,
+                total = searchHistory.Length,
+                page = page,
+                page_size = pageSize
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new {
+                error = new {
+                    code = "INTERNAL_ERROR",
+                    message = "Failed to retrieve search history: " + ex.Message
+                }
+            });
+        }
+    }
 }
 
 public class SemanticSearchRequest
 {
     public string Query { get; set; } = string.Empty;
-    public int MaxResults { get; set; } = 10;
+
+    // Support both 'MaxResults' and 'limit' for compatibility
+    private int _maxResults = 10;
+    public int MaxResults
+    {
+        get => _maxResults;
+        set => _maxResults = value;
+    }
+
+    // Alternative property name for compatibility with tests
+    public int Limit
+    {
+        get => _maxResults;
+        set => _maxResults = value;
+    }
+
     public double MinRelevanceScore { get; set; } = 0.5;
     public string[]? VideoIds { get; set; }
     public DateTime? FromDate { get; set; }
