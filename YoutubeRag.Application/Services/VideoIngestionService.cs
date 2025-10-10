@@ -230,11 +230,16 @@ public class VideoIngestionService : IVideoIngestionService
             return (false, null, "Invalid YouTube video ID format");
 
         // Check if video is accessible using metadata extraction service
+        // Note: This is a soft check - we log warnings but don't reject the video
+        // The video might be accessible via yt-dlp fallback even if YoutubeExplode fails
         try
         {
             var isAccessible = await _metadataExtractionService.IsVideoAccessibleAsync(youTubeId, cancellationToken);
             if (!isAccessible)
-                return (false, null, "Video is not accessible (may be private, deleted, or region-blocked)");
+            {
+                _logger.LogWarning("Video {YouTubeId} may not be accessible via YouTube API, but will attempt ingestion with fallback", youTubeId);
+                // Continue anyway - metadata extraction will handle fallback to yt-dlp if needed
+            }
         }
         catch (Exception ex)
         {

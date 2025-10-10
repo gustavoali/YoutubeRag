@@ -81,12 +81,16 @@ public class JobRetryPolicy
         var exceptionType = exception.GetType().Name;
         var exceptionMessage = exception.Message?.ToLowerInvariant() ?? string.Empty;
 
-        // Permanent errors - no retry
-        if (IsPermamentError(exception, exceptionMessage))
+        // Check message patterns first before exception types
+        // This allows specific error messages to override generic exception type classification
+
+        // Resource not available - retry with linear backoff
+        // Check this first because messages like "Model downloading" should take precedence
+        if (IsResourceNotAvailable(exception, exceptionMessage))
         {
-            logger?.LogInformation("Classified exception as PermanentError: {ExceptionType} - {Message}",
+            logger?.LogInformation("Classified exception as ResourceNotAvailable: {ExceptionType} - {Message}",
                 exceptionType, exception.Message);
-            return FailureCategory.PermanentError;
+            return FailureCategory.ResourceNotAvailable;
         }
 
         // Transient network errors - retry with exponential backoff
@@ -97,12 +101,12 @@ public class JobRetryPolicy
             return FailureCategory.TransientNetworkError;
         }
 
-        // Resource not available - retry with linear backoff
-        if (IsResourceNotAvailable(exception, exceptionMessage))
+        // Permanent errors - no retry
+        if (IsPermamentError(exception, exceptionMessage))
         {
-            logger?.LogInformation("Classified exception as ResourceNotAvailable: {ExceptionType} - {Message}",
+            logger?.LogInformation("Classified exception as PermanentError: {ExceptionType} - {Message}",
                 exceptionType, exception.Message);
-            return FailureCategory.ResourceNotAvailable;
+            return FailureCategory.PermanentError;
         }
 
         // Unknown error - cautious retry
@@ -169,9 +173,11 @@ public class JobRetryPolicy
     private static bool IsPermamentError(Exception exception, string message)
     {
         // Check exception types that indicate permanent failures
+        // Note: InvalidOperationException is NOT included here because it can be transient
+        // (e.g., "Model downloading - please wait", "Connection timeout")
+        // These are classified by message patterns in IsResourceNotAvailable and IsTransientNetworkError
         if (exception is ArgumentException ||
             exception is ArgumentNullException ||
-            exception is InvalidOperationException ||
             exception is FormatException)
         {
             return true;
