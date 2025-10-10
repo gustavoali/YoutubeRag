@@ -17,10 +17,10 @@ namespace YoutubeRag.Tests.Integration.Jobs;
 /// </summary>
 public class DeadLetterQueueTests : IntegrationTestBase
 {
-    private readonly IDeadLetterJobRepository _deadLetterRepository;
-    private readonly IJobRepository _jobRepository;
-    private readonly IVideoRepository _videoRepository;
-    private readonly IUnitOfWork _unitOfWork;
+    private IDeadLetterJobRepository _deadLetterRepository = null!;
+    private IJobRepository _jobRepository = null!;
+    private IVideoRepository _videoRepository = null!;
+    private IUnitOfWork _unitOfWork = null!;
 
     public DeadLetterQueueTests(CustomWebApplicationFactory<Program> factory) : base(factory)
     {
@@ -232,7 +232,7 @@ public class DeadLetterQueueTests : IntegrationTestBase
     public async Task Job_PermanentError_ClassifiedCorrectly()
     {
         // Test that JobRetryPolicy correctly identifies permanent errors
-        var permanentExceptions = new[]
+        var permanentExceptions = new Exception[]
         {
             new InvalidOperationException("Video not found"),
             new ArgumentException("Invalid video format"),

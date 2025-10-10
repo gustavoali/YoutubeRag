@@ -18,9 +18,9 @@ namespace YoutubeRag.Tests.Integration.Jobs;
 /// </summary>
 public class RetryPolicyTests : IntegrationTestBase
 {
-    private readonly IJobRepository _jobRepository;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<RetryPolicyTests> _logger;
+    private IJobRepository _jobRepository = null!;
+    private IUnitOfWork _unitOfWork = null!;
+    private ILogger<RetryPolicyTests> _logger = null!;
 
     public RetryPolicyTests(CustomWebApplicationFactory<Program> factory) : base(factory)
     {

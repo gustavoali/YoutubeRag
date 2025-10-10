@@ -21,10 +21,10 @@ namespace YoutubeRag.Tests.Integration.Jobs;
 /// </summary>
 public class MultiStagePipelineTests : IntegrationTestBase
 {
-    private readonly IJobRepository _jobRepository;
-    private readonly IVideoRepository _videoRepository;
-    private readonly ITranscriptSegmentRepository _transcriptSegmentRepository;
-    private readonly IUnitOfWork _unitOfWork;
+    private IJobRepository _jobRepository = null!;
+    private IVideoRepository _videoRepository = null!;
+    private ITranscriptSegmentRepository _transcriptSegmentRepository = null!;
+    private IUnitOfWork _unitOfWork = null!;
     private readonly Mock<IVideoDownloadService> _mockVideoDownloadService;
     private readonly Mock<IAudioExtractionService> _mockAudioExtractionService;
     private readonly Mock<ITranscriptionService> _mockTranscriptionService;
@@ -62,7 +62,7 @@ public class MultiStagePipelineTests : IntegrationTestBase
                 $"C:\\temp\\{videoId}_whisper.wav");
 
         _mockBackgroundJobClient
-            .Setup(x => x.Enqueue(It.IsAny<System.Linq.Expressions.Expression<Func<object>>>()))
+            .Setup(x => x.Enqueue(It.IsAny<System.Linq.Expressions.Expression<Action>>()))
             .Returns("hangfire-job-id");
     }
 
