@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.SignalR;
 using YoutubeRag.Api.Hubs;
 using YoutubeRag.Application.DTOs.Progress;
+using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Domain.Entities;
+using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Api.Services;
 
@@ -11,13 +14,19 @@ namespace YoutubeRag.Api.Services;
 public class SignalRProgressNotificationService : IProgressNotificationService
 {
     private readonly IHubContext<JobProgressHub> _hubContext;
+    private readonly IUserNotificationRepository _notificationRepository;
+    private readonly IJobRepository _jobRepository;
     private readonly ILogger<SignalRProgressNotificationService> _logger;
 
     public SignalRProgressNotificationService(
         IHubContext<JobProgressHub> hubContext,
+        IUserNotificationRepository notificationRepository,
+        IJobRepository jobRepository,
         ILogger<SignalRProgressNotificationService> logger)
     {
         _hubContext = hubContext;
+        _notificationRepository = notificationRepository;
+        _jobRepository = jobRepository;
         _logger = logger;
     }
 
@@ -61,13 +70,33 @@ public class SignalRProgressNotificationService : IProgressNotificationService
             _logger.LogInformation("Notifying job completed: {JobId}, VideoId: {VideoId}, Status: {Status}",
                 jobId, videoId, status);
 
+            // GAP-3: Persist notification to database
+            var persistedNotification = new UserNotification
+            {
+                UserId = null,  // Broadcast (could be enhanced to get from job.UserId if available)
+                Type = NotificationType.Success,
+                Title = "Video Processing Complete",
+                Message = "Your video has been successfully transcribed and is ready for search.",
+                JobId = jobId,
+                VideoId = videoId,
+                Metadata = new Dictionary<string, object>
+                {
+                    { "action", "view_video" },
+                    { "actionUrl", $"/videos/{videoId}" },
+                    { "status", status }
+                }
+            };
+
+            await _notificationRepository.AddAsync(persistedNotification);
+
             var notification = new
             {
                 jobId,
                 videoId,
                 status,
-                message = "Job completed successfully",
-                completedAt = DateTime.UtcNow
+                message = persistedNotification.Message,
+                completedAt = DateTime.UtcNow,
+                notificationId = persistedNotification.Id
             };
 
             // Notificar al grupo del job
@@ -81,7 +110,8 @@ public class SignalRProgressNotificationService : IProgressNotificationService
                     .SendAsync("JobCompleted", notification);
             }
 
-            _logger.LogTrace("Job completion notification sent successfully: {JobId}", jobId);
+            _logger.LogTrace("Job completion notification sent and persisted successfully: {JobId}, NotificationId: {NotificationId}",
+                jobId, persistedNotification.Id);
         }
         catch (Exception ex)
         {
@@ -99,13 +129,41 @@ public class SignalRProgressNotificationService : IProgressNotificationService
             _logger.LogWarning("Notifying job failed: {JobId}, VideoId: {VideoId}, Error: {Error}",
                 jobId, videoId, error);
 
+            // Get job details for enhanced error information
+            var job = await _jobRepository.GetByIdAsync(jobId);
+
+            // GAP-3 & GAP-6: Persist notification with error details and action suggestions
+            var persistedNotification = new UserNotification
+            {
+                UserId = null,  // Broadcast
+                Type = NotificationType.Error,
+                Title = "Video Processing Failed",
+                Message = error,  // User-friendly message from ErrorMessageFormatter
+                JobId = jobId,
+                VideoId = videoId,
+                Metadata = new Dictionary<string, object>
+                {
+                    { "errorType", job?.ErrorType ?? "Unknown" },
+                    { "failedStage", job?.FailedStage?.ToString() ?? "Unknown" },
+                    { "failureCategory", job?.LastFailureCategory ?? "Unknown" },
+                    { "action", "retry" },
+                    { "actionSuggestion", GetActionSuggestion(job) },
+                    { "retryCount", job?.RetryCount ?? 0 },
+                    { "maxRetries", job?.MaxRetries ?? 3 }
+                }
+            };
+
+            await _notificationRepository.AddAsync(persistedNotification);
+
             var notification = new
             {
                 jobId,
                 videoId,
                 error,
                 message = "Job failed",
-                failedAt = DateTime.UtcNow
+                failedAt = DateTime.UtcNow,
+                notificationId = persistedNotification.Id,
+                metadata = persistedNotification.Metadata
             };
 
             // Notificar al grupo del job
@@ -119,12 +177,32 @@ public class SignalRProgressNotificationService : IProgressNotificationService
                     .SendAsync("JobFailed", notification);
             }
 
-            _logger.LogTrace("Job failure notification sent successfully: {JobId}", jobId);
+            _logger.LogTrace("Job failure notification sent and persisted successfully: {JobId}, NotificationId: {NotificationId}",
+                jobId, persistedNotification.Id);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error notifying job failure: {JobId}", jobId);
         }
+    }
+
+    /// <summary>
+    /// GAP-6: Gets action suggestion based on job failure category
+    /// </summary>
+    private string GetActionSuggestion(Job? job)
+    {
+        if (job == null)
+        {
+            return "Please try again later.";
+        }
+
+        return job.LastFailureCategory switch
+        {
+            "TransientNetworkError" => "This is a temporary network issue. The system will retry automatically.",
+            "ResourceNotAvailable" => "Waiting for resources to become available. Please check back in a few minutes.",
+            "PermanentError" => "This video cannot be processed. Please verify the video URL is correct and the video is publicly accessible.",
+            _ => "Please contact support if the issue persists."
+        };
     }
 
     /// <summary>

@@ -51,6 +51,17 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(j => j.ErrorMessage)
             .HasColumnType("TEXT");
 
+        // Enhanced error tracking fields (GAP-2)
+        builder.Property(j => j.ErrorStackTrace)
+            .HasColumnType("TEXT");
+
+        builder.Property(j => j.ErrorType)
+            .HasMaxLength(500);
+
+        builder.Property(j => j.FailedStage)
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
         builder.Property(j => j.Parameters)
             .HasColumnType("JSON");
 

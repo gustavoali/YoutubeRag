@@ -356,6 +356,14 @@ public class TranscriptionJobProcessor
                 var retryPolicy = JobRetryPolicy.GetPolicy(ex, _logger);
                 transcriptionJob.LastFailureCategory = retryPolicy.Category.ToString();
 
+                // GAP-1: Format user-friendly error message
+                var userFriendlyMessage = ErrorMessageFormatter.FormatUserFriendlyMessage(ex, retryPolicy.Category);
+
+                // GAP-2: Store enhanced error tracking information
+                transcriptionJob.ErrorStackTrace = ex.StackTrace;
+                transcriptionJob.ErrorType = ex.GetType().FullName;
+                transcriptionJob.FailedStage = transcriptionJob.CurrentStage;
+
                 _logger.LogInformation("Applied retry policy for job {JobId}: {PolicyDescription}",
                     transcriptionJob.Id, retryPolicy.Description);
 
@@ -366,7 +374,7 @@ public class TranscriptionJobProcessor
                         transcriptionJob.Id);
 
                     await SendToDeadLetterQueueAsync(transcriptionJob, ex, retryPolicy.Category.ToString(), cancellationToken);
-                    await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, ex.Message, cancellationToken);
+                    await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, userFriendlyMessage, cancellationToken);
                 }
                 else
                 {
@@ -390,14 +398,14 @@ public class TranscriptionJobProcessor
                         await SendToDeadLetterQueueAsync(transcriptionJob, ex, retryPolicy.Category.ToString(), cancellationToken);
                     }
 
-                    await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, ex.Message, cancellationToken);
+                    await UpdateJobStatusAsync(transcriptionJob, JobStatus.Failed, userFriendlyMessage, cancellationToken);
                 }
 
-                // Notify: Job failed
+                // Notify: Job failed with user-friendly message
                 await _progressNotificationService.NotifyJobFailedAsync(
                     transcriptionJob.Id,
                     videoId,
-                    ex.Message);
+                    userFriendlyMessage);
             }
 
             // Update video status to indicate transcription failed

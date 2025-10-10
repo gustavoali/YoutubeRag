@@ -187,6 +187,8 @@ public partial class Program
         YoutubeRag.Infrastructure.Repositories.RefreshTokenRepository>();
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IDeadLetterJobRepository,
         YoutubeRag.Infrastructure.Repositories.DeadLetterJobRepository>();
+    builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IUserNotificationRepository,
+        YoutubeRag.Infrastructure.Repositories.UserNotificationRepository>();
     builder.Services.AddScoped<YoutubeRag.Application.Interfaces.IUnitOfWork,
         YoutubeRag.Infrastructure.Repositories.UnitOfWork>();
 
