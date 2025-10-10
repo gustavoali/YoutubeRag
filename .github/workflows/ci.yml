@@ -94,6 +94,7 @@ jobs:
           dotnet ef migrations list \
             --project YoutubeRag.Infrastructure \
             --startup-project YoutubeRag.Api \
+            --configuration Release \
             --no-build || true
 
           # Apply all pending migrations
@@ -101,6 +102,7 @@ jobs:
           dotnet ef database update \
             --project YoutubeRag.Infrastructure \
             --startup-project YoutubeRag.Api \
+            --configuration Release \
             --no-build \
             --verbose
 
