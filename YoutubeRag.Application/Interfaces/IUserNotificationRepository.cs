@@ -91,4 +91,17 @@ public interface IUserNotificationRepository
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if successful, false if notification not found</returns>
     Task<bool> DeleteAsync(string notificationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets recent notifications for a specific job within a time window
+    /// Used for deduplication
+    /// </summary>
+    /// <param name="jobId">The job ID</param>
+    /// <param name="timeWindow">Time window to look back</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of recent notifications for the job</returns>
+    Task<List<UserNotification>> GetByJobIdRecentAsync(
+        string jobId,
+        TimeSpan timeWindow,
+        CancellationToken cancellationToken = default);
 }

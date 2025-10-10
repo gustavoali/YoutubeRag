@@ -49,5 +49,17 @@ public static class RecurringJobsSetup
             "cleanup-temp-files",
             job => job.ExecuteAsync(CancellationToken.None),
             Cron.Daily(4, 0)); // 4:00 AM (after Whisper cleanup)
+
+        // GAP-P2-2: Clean up old completed jobs daily at 5 AM
+        recurringJobManager.AddOrUpdate<JobCleanupJob>(
+            "cleanup-old-completed-jobs",
+            job => job.ExecuteAsync(CancellationToken.None),
+            Cron.Daily(5, 0)); // 5:00 AM
+
+        // GAP-P2-5: Clean up old read notifications daily at 2 AM
+        recurringJobManager.AddOrUpdate<NotificationCleanupJob>(
+            "cleanup-old-notifications",
+            job => job.ExecuteAsync(CancellationToken.None),
+            Cron.Daily(2, 0)); // 2:00 AM
     }
 }
