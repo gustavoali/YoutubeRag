@@ -229,4 +229,25 @@ public class UserNotificationRepository : IUserNotificationRepository
 
         return true;
     }
+
+    /// <inheritdoc />
+    public async Task<List<UserNotification>> GetByJobIdRecentAsync(
+        string jobId,
+        TimeSpan timeWindow,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
+
+        var cutoffTime = DateTime.UtcNow.Subtract(timeWindow);
+
+        var notifications = await _context.UserNotifications
+            .Where(n => n.JobId == jobId && n.CreatedAt >= cutoffTime)
+            .OrderByDescending(n => n.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        _logger.LogDebug("Retrieved {Count} recent notifications for job {JobId} within {Minutes} minutes",
+            notifications.Count, jobId, timeWindow.TotalMinutes);
+
+        return notifications;
+    }
 }

@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using YoutubeRag.Api.Hubs;
 using YoutubeRag.Application.DTOs.Progress;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
+using YoutubeRag.Infrastructure.Jobs;
 
 namespace YoutubeRag.Api.Services;
 
@@ -17,173 +19,220 @@ public class SignalRProgressNotificationService : IProgressNotificationService
     private readonly IUserNotificationRepository _notificationRepository;
     private readonly IJobRepository _jobRepository;
     private readonly ILogger<SignalRProgressNotificationService> _logger;
+    private readonly CleanupOptions _cleanupOptions;
 
     public SignalRProgressNotificationService(
         IHubContext<JobProgressHub> hubContext,
         IUserNotificationRepository notificationRepository,
         IJobRepository jobRepository,
-        ILogger<SignalRProgressNotificationService> logger)
+        ILogger<SignalRProgressNotificationService> logger,
+        IOptions<CleanupOptions> cleanupOptions)
     {
         _hubContext = hubContext;
         _notificationRepository = notificationRepository;
         _jobRepository = jobRepository;
         _logger = logger;
+        _cleanupOptions = cleanupOptions.Value;
     }
 
     /// <summary>
     /// Notifica el progreso de un job específico
+    /// GAP-P2-4: Fire-and-forget pattern - does not await SignalR sends
     /// </summary>
-    public async Task NotifyJobProgressAsync(string jobId, JobProgressDto progress)
+    public Task NotifyJobProgressAsync(string jobId, JobProgressDto progress)
     {
-        try
+        // GAP-P2-4: Fire-and-forget - send notification without blocking
+        _ = Task.Run(async () =>
         {
-            _logger.LogDebug("Notifying job progress: {JobId}, Progress: {Progress}%, Stage: {Stage}",
-                jobId, progress.Progress, progress.CurrentStage);
-
-            // Notificar al grupo del job específico
-            await _hubContext.Clients.Group($"job-{jobId}")
-                .SendAsync("JobProgressUpdate", progress);
-
-            // Notificar al grupo del video (si existe)
-            if (!string.IsNullOrEmpty(progress.VideoId))
+            try
             {
-                await _hubContext.Clients.Group($"video-{progress.VideoId}")
-                    .SendAsync("JobProgressUpdate", progress);
-            }
+                _logger.LogDebug("Notifying job progress: {JobId}, Progress: {Progress}%, Stage: {Stage}",
+                    jobId, progress.Progress, progress.CurrentStage);
 
-            _logger.LogTrace("Job progress notification sent successfully: {JobId}", jobId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error notifying job progress: {JobId}", jobId);
-            // No lanzamos la excepción para no interrumpir el flujo del job
-        }
+                // Notificar al grupo del job específico
+                await _hubContext.Clients.Group($"job-{jobId}")
+                    .SendAsync("JobProgressUpdate", progress);
+
+                // Notificar al grupo del video (si existe)
+                if (!string.IsNullOrEmpty(progress.VideoId))
+                {
+                    await _hubContext.Clients.Group($"video-{progress.VideoId}")
+                        .SendAsync("JobProgressUpdate", progress);
+                }
+
+                _logger.LogTrace("Job progress notification sent successfully: {JobId}", jobId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error notifying job progress: {JobId}", jobId);
+                // Don't throw - notifications are best-effort
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Notifica que un job ha completado exitosamente
+    /// GAP-P2-4: Fire-and-forget pattern - does not await SignalR sends
     /// </summary>
-    public async Task NotifyJobCompletedAsync(string jobId, string videoId, string status)
+    public Task NotifyJobCompletedAsync(string jobId, string videoId, string status)
     {
-        try
+        // GAP-P2-4: Fire-and-forget - send notification without blocking
+        _ = Task.Run(async () =>
         {
-            _logger.LogInformation("Notifying job completed: {JobId}, VideoId: {VideoId}, Status: {Status}",
-                jobId, videoId, status);
-
-            // GAP-3: Persist notification to database
-            var persistedNotification = new UserNotification
+            try
             {
-                UserId = null,  // Broadcast (could be enhanced to get from job.UserId if available)
-                Type = NotificationType.Success,
-                Title = "Video Processing Complete",
-                Message = "Your video has been successfully transcribed and is ready for search.",
-                JobId = jobId,
-                VideoId = videoId,
-                Metadata = new Dictionary<string, object>
+                _logger.LogInformation("Notifying job completed: {JobId}, VideoId: {VideoId}, Status: {Status}",
+                    jobId, videoId, status);
+
+                // GAP-3: Persist notification to database
+                var persistedNotification = new UserNotification
                 {
-                    { "action", "view_video" },
-                    { "actionUrl", $"/videos/{videoId}" },
-                    { "status", status }
-                }
-            };
+                    UserId = null,  // Broadcast (could be enhanced to get from job.UserId if available)
+                    Type = NotificationType.Success,
+                    Title = "Video Processing Complete",
+                    Message = "Your video has been successfully transcribed and is ready for search.",
+                    JobId = jobId,
+                    VideoId = videoId,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "action", "view_video" },
+                        { "actionUrl", $"/videos/{videoId}" },
+                        { "status", status }
+                    }
+                };
 
-            await _notificationRepository.AddAsync(persistedNotification);
+                await _notificationRepository.AddAsync(persistedNotification);
 
-            var notification = new
-            {
-                jobId,
-                videoId,
-                status,
-                message = persistedNotification.Message,
-                completedAt = DateTime.UtcNow,
-                notificationId = persistedNotification.Id
-            };
+                var notification = new
+                {
+                    jobId,
+                    videoId,
+                    status,
+                    message = persistedNotification.Message,
+                    completedAt = DateTime.UtcNow,
+                    notificationId = persistedNotification.Id
+                };
 
-            // Notificar al grupo del job
-            await _hubContext.Clients.Group($"job-{jobId}")
-                .SendAsync("JobCompleted", notification);
-
-            // Notificar al grupo del video
-            if (!string.IsNullOrEmpty(videoId))
-            {
-                await _hubContext.Clients.Group($"video-{videoId}")
+                // Notificar al grupo del job
+                await _hubContext.Clients.Group($"job-{jobId}")
                     .SendAsync("JobCompleted", notification);
-            }
 
-            _logger.LogTrace("Job completion notification sent and persisted successfully: {JobId}, NotificationId: {NotificationId}",
-                jobId, persistedNotification.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error notifying job completion: {JobId}", jobId);
-        }
+                // Notificar al grupo del video
+                if (!string.IsNullOrEmpty(videoId))
+                {
+                    await _hubContext.Clients.Group($"video-{videoId}")
+                        .SendAsync("JobCompleted", notification);
+                }
+
+                _logger.LogTrace("Job completion notification sent and persisted successfully: {JobId}, NotificationId: {NotificationId}",
+                    jobId, persistedNotification.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error notifying job completion: {JobId}", jobId);
+                // Don't throw - notifications are best-effort
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Notifica que un job ha fallado
+    /// GAP-P2-4: Fire-and-forget pattern - does not await SignalR sends
+    /// GAP-P2-6: Deduplication - prevents duplicate error notifications
     /// </summary>
-    public async Task NotifyJobFailedAsync(string jobId, string videoId, string error)
+    public Task NotifyJobFailedAsync(string jobId, string videoId, string error)
     {
-        try
+        // GAP-P2-4: Fire-and-forget - send notification without blocking
+        _ = Task.Run(async () =>
         {
-            _logger.LogWarning("Notifying job failed: {JobId}, VideoId: {VideoId}, Error: {Error}",
-                jobId, videoId, error);
-
-            // Get job details for enhanced error information
-            var job = await _jobRepository.GetByIdAsync(jobId);
-
-            // GAP-3 & GAP-6: Persist notification with error details and action suggestions
-            var persistedNotification = new UserNotification
+            try
             {
-                UserId = null,  // Broadcast
-                Type = NotificationType.Error,
-                Title = "Video Processing Failed",
-                Message = error,  // User-friendly message from ErrorMessageFormatter
-                JobId = jobId,
-                VideoId = videoId,
-                Metadata = new Dictionary<string, object>
+                _logger.LogWarning("Notifying job failed: {JobId}, VideoId: {VideoId}, Error: {Error}",
+                    jobId, videoId, error);
+
+                // GAP-P2-6: Check for duplicate notifications within time window
+                var deduplicationWindow = TimeSpan.FromMinutes(_cleanupOptions.NotificationDeduplicationMinutes);
+                var recentNotifications = await _notificationRepository.GetByJobIdRecentAsync(
+                    jobId,
+                    deduplicationWindow);
+
+                // Check if a duplicate error notification exists
+                var isDuplicate = recentNotifications.Any(n =>
+                    n.Type == NotificationType.Error &&
+                    n.Message == error);
+
+                if (isDuplicate)
                 {
-                    { "errorType", job?.ErrorType ?? "Unknown" },
-                    { "failedStage", job?.FailedStage?.ToString() ?? "Unknown" },
-                    { "failureCategory", job?.LastFailureCategory ?? "Unknown" },
-                    { "action", "retry" },
-                    { "actionSuggestion", GetActionSuggestion(job) },
-                    { "retryCount", job?.RetryCount ?? 0 },
-                    { "maxRetries", job?.MaxRetries ?? 3 }
+                    _logger.LogDebug(
+                        "Skipping duplicate error notification for job {JobId}. Same error already notified within {Minutes} minutes.",
+                        jobId,
+                        deduplicationWindow.TotalMinutes);
+                    return;  // Skip duplicate notification
                 }
-            };
 
-            await _notificationRepository.AddAsync(persistedNotification);
+                // Get job details for enhanced error information
+                var job = await _jobRepository.GetByIdAsync(jobId);
 
-            var notification = new
-            {
-                jobId,
-                videoId,
-                error,
-                message = "Job failed",
-                failedAt = DateTime.UtcNow,
-                notificationId = persistedNotification.Id,
-                metadata = persistedNotification.Metadata
-            };
+                // GAP-3 & GAP-6: Persist notification with error details and action suggestions
+                var persistedNotification = new UserNotification
+                {
+                    UserId = null,  // Broadcast
+                    Type = NotificationType.Error,
+                    Title = "Video Processing Failed",
+                    Message = error,  // User-friendly message from ErrorMessageFormatter
+                    JobId = jobId,
+                    VideoId = videoId,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "errorType", job?.ErrorType ?? "Unknown" },
+                        { "failedStage", job?.FailedStage?.ToString() ?? "Unknown" },
+                        { "failureCategory", job?.LastFailureCategory ?? "Unknown" },
+                        { "action", "retry" },
+                        { "actionSuggestion", GetActionSuggestion(job) },
+                        { "retryCount", job?.RetryCount ?? 0 },
+                        { "maxRetries", job?.MaxRetries ?? 3 }
+                    }
+                };
 
-            // Notificar al grupo del job
-            await _hubContext.Clients.Group($"job-{jobId}")
-                .SendAsync("JobFailed", notification);
+                await _notificationRepository.AddAsync(persistedNotification);
 
-            // Notificar al grupo del video
-            if (!string.IsNullOrEmpty(videoId))
-            {
-                await _hubContext.Clients.Group($"video-{videoId}")
+                var notification = new
+                {
+                    jobId,
+                    videoId,
+                    error,
+                    message = "Job failed",
+                    failedAt = DateTime.UtcNow,
+                    notificationId = persistedNotification.Id,
+                    metadata = persistedNotification.Metadata
+                };
+
+                // Notificar al grupo del job
+                await _hubContext.Clients.Group($"job-{jobId}")
                     .SendAsync("JobFailed", notification);
-            }
 
-            _logger.LogTrace("Job failure notification sent and persisted successfully: {JobId}, NotificationId: {NotificationId}",
-                jobId, persistedNotification.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error notifying job failure: {JobId}", jobId);
-        }
+                // Notificar al grupo del video
+                if (!string.IsNullOrEmpty(videoId))
+                {
+                    await _hubContext.Clients.Group($"video-{videoId}")
+                        .SendAsync("JobFailed", notification);
+                }
+
+                _logger.LogTrace("Job failure notification sent and persisted successfully: {JobId}, NotificationId: {NotificationId}",
+                    jobId, persistedNotification.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error notifying job failure: {JobId}", jobId);
+                // Don't throw - notifications are best-effort
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -207,67 +256,91 @@ public class SignalRProgressNotificationService : IProgressNotificationService
 
     /// <summary>
     /// Notifica el progreso general de un video
+    /// GAP-P2-4: Fire-and-forget pattern - does not await SignalR sends
     /// </summary>
-    public async Task NotifyVideoProgressAsync(string videoId, VideoProgressDto progress)
+    public Task NotifyVideoProgressAsync(string videoId, VideoProgressDto progress)
     {
-        try
+        // GAP-P2-4: Fire-and-forget - send notification without blocking
+        _ = Task.Run(async () =>
         {
-            _logger.LogDebug("Notifying video progress: {VideoId}, Progress: {Progress}%",
-                videoId, progress.OverallProgress);
+            try
+            {
+                _logger.LogDebug("Notifying video progress: {VideoId}, Progress: {Progress}%",
+                    videoId, progress.OverallProgress);
 
-            // Notificar al grupo del video
-            await _hubContext.Clients.Group($"video-{videoId}")
-                .SendAsync("VideoProgressUpdate", progress);
+                // Notificar al grupo del video
+                await _hubContext.Clients.Group($"video-{videoId}")
+                    .SendAsync("VideoProgressUpdate", progress);
 
-            _logger.LogTrace("Video progress notification sent successfully: {VideoId}", videoId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error notifying video progress: {VideoId}", videoId);
-        }
+                _logger.LogTrace("Video progress notification sent successfully: {VideoId}", videoId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error notifying video progress: {VideoId}", videoId);
+                // Don't throw - notifications are best-effort
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Notifica a un usuario específico
+    /// GAP-P2-4: Fire-and-forget pattern - does not await SignalR sends
     /// </summary>
-    public async Task NotifyUserAsync(string userId, UserNotificationDto notification)
+    public Task NotifyUserAsync(string userId, UserNotificationDto notification)
     {
-        try
+        // GAP-P2-4: Fire-and-forget - send notification without blocking
+        _ = Task.Run(async () =>
         {
-            _logger.LogDebug("Notifying user: {UserId}, Type: {Type}, Message: {Message}",
-                userId, notification.Type, notification.Message);
+            try
+            {
+                _logger.LogDebug("Notifying user: {UserId}, Type: {Type}, Message: {Message}",
+                    userId, notification.Type, notification.Message);
 
-            // Notificar al grupo del usuario
-            await _hubContext.Clients.Group($"user-{userId}")
-                .SendAsync("UserNotification", notification);
+                // Notificar al grupo del usuario
+                await _hubContext.Clients.Group($"user-{userId}")
+                    .SendAsync("UserNotification", notification);
 
-            _logger.LogTrace("User notification sent successfully: {UserId}", userId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error notifying user: {UserId}", userId);
-        }
+                _logger.LogTrace("User notification sent successfully: {UserId}", userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error notifying user: {UserId}", userId);
+                // Don't throw - notifications are best-effort
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Notifica a todos los usuarios conectados (broadcast)
+    /// GAP-P2-4: Fire-and-forget pattern - does not await SignalR sends
     /// </summary>
-    public async Task BroadcastNotificationAsync(UserNotificationDto notification)
+    public Task BroadcastNotificationAsync(UserNotificationDto notification)
     {
-        try
+        // GAP-P2-4: Fire-and-forget - send notification without blocking
+        _ = Task.Run(async () =>
         {
-            _logger.LogInformation("Broadcasting notification: {Type}, Message: {Message}",
-                notification.Type, notification.Message);
+            try
+            {
+                _logger.LogInformation("Broadcasting notification: {Type}, Message: {Message}",
+                    notification.Type, notification.Message);
 
-            // Notificar a todos los clientes conectados
-            await _hubContext.Clients.All
-                .SendAsync("BroadcastNotification", notification);
+                // Notificar a todos los clientes conectados
+                await _hubContext.Clients.All
+                    .SendAsync("BroadcastNotification", notification);
 
-            _logger.LogTrace("Broadcast notification sent successfully");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error broadcasting notification");
-        }
+                _logger.LogTrace("Broadcast notification sent successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error broadcasting notification");
+                // Don't throw - notifications are best-effort
+            }
+        });
+
+        return Task.CompletedTask;
     }
 }

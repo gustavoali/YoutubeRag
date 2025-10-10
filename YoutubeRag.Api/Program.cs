@@ -90,6 +90,10 @@ public partial class Program
     builder.Services.Configure<YoutubeRag.Application.Configuration.WhisperOptions>(
         configuration.GetSection(YoutubeRag.Application.Configuration.WhisperOptions.SectionName));
 
+    // GAP-P2-2, GAP-P2-5, GAP-P2-6: Configure Cleanup options
+    builder.Services.Configure<YoutubeRag.Infrastructure.Jobs.CleanupOptions>(
+        configuration.GetSection(YoutubeRag.Infrastructure.Jobs.CleanupOptions.SectionName));
+
     // Register IAppConfiguration
     builder.Services.AddSingleton<YoutubeRag.Application.Configuration.IAppConfiguration, YoutubeRag.Api.Configuration.AppConfiguration>();
 
@@ -171,6 +175,12 @@ public partial class Program
 
     // Register temp file cleanup job
     builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.TempFileCleanupJob>();
+
+    // GAP-P2-2: Register job cleanup job
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.JobCleanupJob>();
+
+    // GAP-P2-5: Register notification cleanup job
+    builder.Services.AddScoped<YoutubeRag.Infrastructure.Jobs.NotificationCleanupJob>();
 
     // Register repositories
     builder.Services.AddScoped(typeof(YoutubeRag.Application.Interfaces.IRepository<>),
