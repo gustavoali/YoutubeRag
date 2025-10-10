@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+
+          <!-- Exclude generated code and infrastructure -->
+          <Exclude>
+            [*.Tests*]*,
+            [*]*.Migrations.*,
+            [*]*.Designer,
+            [*]*Migration,
+            [YoutubeRag.Infrastructure]YoutubeRag.Infrastructure.Migrations.*,
+            [YoutubeRag.Infrastructure]YoutubeRag.Infrastructure.Data.Migrations.*,
+            [YoutubeRag.Api]Program,
+            [*]*Program*,
+            [*]*Startup*
+          </Exclude>
+
+          <!-- Exclude specific files -->
+          <ExcludeByFile>
+            **/*Migration*.cs,
+            **/*Designer.cs,
+            **/Migrations/*.cs,
+            **/Program.cs,
+            **/Startup.cs
+          </ExcludeByFile>
+
+          <!-- Exclude attributes -->
+          <ExcludeByAttribute>
+            Obsolete,
+            GeneratedCodeAttribute,
+            CompilerGeneratedAttribute,
+            ExcludeFromCodeCoverageAttribute
+          </ExcludeByAttribute>
+
+          <!-- Include all assemblies except test projects -->
+          <Include>
+            [YoutubeRag.Domain]*,
+            [YoutubeRag.Application]*,
+            [YoutubeRag.Infrastructure]*,
+            [YoutubeRag.Api]*
+          </Include>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

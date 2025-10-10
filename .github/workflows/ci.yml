@@ -78,16 +78,97 @@ jobs:
       - name: Build Solution
         run: dotnet build YoutubeRag.sln --configuration Release --no-restore
 
+      # Step 5.5: Apply Database Migrations
+      - name: Apply Database Migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=test_db;User=root;Password=test_password;AllowPublicKeyRetrieval=True;"
+        run: |
+          # Install EF Core tools
+          dotnet tool install --global dotnet-ef --version 8.0.0
+
+          # Add tools to PATH
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          # List available migrations (for debugging)
+          echo "Available migrations:"
+          dotnet ef migrations list \
+            --project YoutubeRag.Infrastructure \
+            --startup-project YoutubeRag.Api \
+            --no-build || true
+
+          # Apply all pending migrations
+          echo "Applying database migrations..."
+          dotnet ef database update \
+            --project YoutubeRag.Infrastructure \
+            --startup-project YoutubeRag.Api \
+            --no-build \
+            --verbose
+
+          echo "✅ Database migrations applied successfully"
+
       # Step 6: Run tests with code coverage
       - name: Run Tests with Coverage
         env:
-          # Test environment variables
+          # Database and Cache
           ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=test_db;User=root;Password=test_password;AllowPublicKeyRetrieval=True;"
-          Redis__ConnectionString: "localhost:6379"
-          JWT__Secret: "TestSecretKeyForJWTTokenGenerationMinimum256Bits!"
-          JWT__Issuer: "TestIssuer"
-          JWT__Audience: "TestAudience"
-          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__Redis: "localhost:6379"
+
+          # JWT Authentication
+          JwtSettings__SecretKey: "TestSecretKeyForJWTTokenGenerationMinimum256Bits!"
+          JwtSettings__ExpirationInMinutes: "60"
+          JwtSettings__RefreshTokenExpirationInDays: "7"
+
+          # Application Settings
+          ASPNETCORE_ENVIRONMENT: "Testing"
+          AppSettings__Environment: "Testing"
+          AppSettings__ProcessingMode: "Mock"
+          AppSettings__StorageMode: "Database"
+          AppSettings__EnableAuth: "true"
+          AppSettings__EnableWebSockets: "true"
+          AppSettings__EnableMetrics: "false"
+          AppSettings__EnableRealProcessing: "false"
+          AppSettings__EnableDocs: "true"
+          AppSettings__EnableCors: "true"
+
+          # YouTube Configuration
+          YouTube__TimeoutSeconds: "30"
+          YouTube__MaxRetries: "3"
+          YouTube__MaxVideoDurationSeconds: "14400"
+
+          # Processing Configuration (Sprint 2)
+          Processing__TempFilePath: "/tmp/youtuberag"
+          Processing__MaxVideoSizeMB: "2048"
+          Processing__FFmpegPath: "ffmpeg"
+          Processing__CleanupAfterHours: "1"
+          Processing__MinDiskSpaceGB: "5"
+          Processing__ProgressReportIntervalSeconds: "10"
+
+          # Whisper Configuration (Sprint 2)
+          Whisper__ModelsPath: "/tmp/whisper-models"
+          Whisper__DefaultModel: "auto"
+          Whisper__ForceModel: ""
+          Whisper__ModelDownloadUrl: "https://openaipublic.azureedge.net/main/whisper/models/"
+          Whisper__CleanupUnusedModelsDays: "30"
+          Whisper__MinDiskSpaceGB: "10"
+          Whisper__DownloadRetryAttempts: "3"
+          Whisper__DownloadRetryDelaySeconds: "5"
+          Whisper__ModelCacheDurationMinutes: "60"
+          Whisper__TinyModelThresholdSeconds: "600"
+          Whisper__BaseModelThresholdSeconds: "1800"
+
+          # Cleanup Configuration (Sprint 2)
+          Cleanup__JobRetentionDays: "1"
+          Cleanup__NotificationRetentionDays: "1"
+          Cleanup__NotificationDeduplicationMinutes: "5"
+
+          # Rate Limiting
+          RateLimiting__PermitLimit: "200"
+          RateLimiting__WindowMinutes: "1"
+
+          # Logging
+          Logging__LogLevel__Default: "Information"
+          Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+          Logging__LogLevel__Microsoft.EntityFrameworkCore: "Warning"
         run: |
           # Install coverage tools
           dotnet tool install --global coverlet.console
