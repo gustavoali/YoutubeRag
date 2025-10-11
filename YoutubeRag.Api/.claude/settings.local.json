@@ -69,7 +69,8 @@
       "Bash(pwsh:*)",
       "Bash(dotnet tool update:*)",
       "Bash(dotnet sln add:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

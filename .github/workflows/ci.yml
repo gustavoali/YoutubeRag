@@ -238,16 +238,36 @@ jobs:
           COVERAGE_FILE=$(find TestResults -name "coverage.cobertura.xml" | head -1)
           if [ -f "$COVERAGE_FILE" ]; then
             LINE_RATE=$(xmlstarlet sel -t -v "//coverage/@line-rate" "$COVERAGE_FILE")
-            COVERAGE=$(echo "$LINE_RATE * 100" | bc -l | cut -d. -f1)
+            BRANCH_RATE=$(xmlstarlet sel -t -v "//coverage/@branch-rate" "$COVERAGE_FILE")
 
-            echo "Code Coverage: ${COVERAGE}%"
+            LINE_COVERAGE=$(echo "$LINE_RATE * 100" | bc -l | cut -d. -f1)
+            BRANCH_COVERAGE=$(echo "$BRANCH_RATE * 100" | bc -l | cut -d. -f1)
 
-            # Check if coverage meets threshold
-            THRESHOLD=80
-            if [ "$COVERAGE" -lt "$THRESHOLD" ]; then
-              echo "::warning::Code coverage ${COVERAGE}% is below the required threshold of ${THRESHOLD}%"
+            echo "📊 Coverage Summary:"
+            echo "  Line Coverage: ${LINE_COVERAGE}%"
+            echo "  Branch Coverage: ${BRANCH_COVERAGE}%"
+
+            # Check if coverage meets thresholds (TEST-027: >90% line, >85% branch)
+            LINE_THRESHOLD=90
+            BRANCH_THRESHOLD=85
+            FAILED=0
+
+            if [ "$LINE_COVERAGE" -lt "$LINE_THRESHOLD" ]; then
+              echo "::error::Line coverage ${LINE_COVERAGE}% is below the required threshold of ${LINE_THRESHOLD}%"
+              FAILED=1
             else
-              echo "::notice::Code coverage ${COVERAGE}% meets the required threshold of ${THRESHOLD}%"
+              echo "::notice::✅ Line coverage ${LINE_COVERAGE}% meets the required threshold of ${LINE_THRESHOLD}%"
+            fi
+
+            if [ "$BRANCH_COVERAGE" -lt "$BRANCH_THRESHOLD" ]; then
+              echo "::warning::Branch coverage ${BRANCH_COVERAGE}% is below the recommended threshold of ${BRANCH_THRESHOLD}%"
+            else
+              echo "::notice::✅ Branch coverage ${BRANCH_COVERAGE}% meets the recommended threshold of ${BRANCH_THRESHOLD}%"
+            fi
+
+            # Fail the build if line coverage is below threshold
+            if [ "$FAILED" -eq 1 ]; then
+              exit 1
             fi
           else
             echo "::warning::No coverage file found"
