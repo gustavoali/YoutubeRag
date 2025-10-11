@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Infrastructure",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Tests.Integration", "YoutubeRag.Tests.Integration\YoutubeRag.Tests.Integration.csproj", "{3A8567BB-7B0E-400B-844A-F338783BDDEF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoutubeRag.Tests.E2E", "YoutubeRag.Tests.E2E\YoutubeRag.Tests.E2E.csproj", "{29845B74-BA87-410A-883C-87FBD06D48BB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +85,18 @@ Global
 		{3A8567BB-7B0E-400B-844A-F338783BDDEF}.Release|x64.Build.0 = Release|Any CPU
 		{3A8567BB-7B0E-400B-844A-F338783BDDEF}.Release|x86.ActiveCfg = Release|Any CPU
 		{3A8567BB-7B0E-400B-844A-F338783BDDEF}.Release|x86.Build.0 = Release|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Debug|x64.Build.0 = Debug|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Debug|x86.Build.0 = Debug|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Release|x64.ActiveCfg = Release|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Release|x64.Build.0 = Release|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Release|x86.ActiveCfg = Release|Any CPU
+		{29845B74-BA87-410A-883C-87FBD06D48BB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,229 @@
+# E2E Testing Pipeline with Playwright
+# Runs end-to-end tests against the API
+name: E2E Tests
+
+on:
+  push:
+    branches: [ develop, master ]
+  pull_request:
+    branches: [ develop, master ]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+  schedule:
+    # Run E2E tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Service containers
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: e2e_password
+          MYSQL_DATABASE: youtube_rag_test_e2e
+          MYSQL_USER: youtube_rag_user
+          MYSQL_PASSWORD: youtube_rag_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      # Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Setup .NET
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Cache dependencies
+      - name: Cache NuGet Packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-e2e-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-e2e-
+            ${{ runner.os }}-nuget-
+
+      # Install Playwright
+      - name: Install Playwright CLI
+        run: |
+          dotnet tool install --global Microsoft.Playwright.CLI || dotnet tool update --global Microsoft.Playwright.CLI
+
+      # Restore and build
+      - name: Restore Dependencies
+        run: dotnet restore YoutubeRag.sln
+
+      - name: Build Solution
+        run: dotnet build YoutubeRag.sln --configuration Release --no-restore
+
+      # Install Playwright browsers
+      - name: Install Playwright Browsers
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          playwright install --with-deps chromium
+
+      # Apply migrations
+      - name: Apply Database Migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_test_e2e;Uid=youtube_rag_user;Pwd=youtube_rag_password;AllowPublicKeyRetrieval=True;"
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.0 || dotnet tool update --global dotnet-ef --version 8.0.0
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          echo "Applying database migrations..."
+          dotnet ef database update \
+            --project YoutubeRag.Infrastructure \
+            --startup-project YoutubeRag.Api \
+            --configuration Release \
+            --no-build \
+            --verbose
+
+      # Start API server
+      - name: Start API Server
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_test_e2e;Uid=youtube_rag_user;Pwd=youtube_rag_password;AllowPublicKeyRetrieval=True;"
+          ConnectionStrings__Redis: "localhost:6379"
+          JwtSettings__SecretKey: "E2ETestSecretKeyForJWTTokenGenerationMinimum256BitsLong!"
+          JwtSettings__ExpirationInMinutes: "60"
+          JwtSettings__RefreshTokenExpirationInDays: "7"
+          ASPNETCORE_ENVIRONMENT: "Testing"
+          AppSettings__Environment: "Testing"
+          AppSettings__ProcessingMode: "Mock"
+          AppSettings__StorageMode: "Database"
+          AppSettings__EnableAuth: "true"
+          AppSettings__EnableWebSockets: "false"
+          AppSettings__EnableMetrics: "false"
+          AppSettings__EnableRealProcessing: "false"
+          AppSettings__EnableDocs: "true"
+          AppSettings__EnableCors: "true"
+          ASPNETCORE_URLS: "http://localhost:5000"
+        run: |
+          cd YoutubeRag.Api
+          dotnet run --no-build --configuration Release &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+
+          # Wait for API to be ready
+          echo "Waiting for API to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:5000/health > /dev/null 2>&1; then
+              echo "API is ready!"
+              break
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
+
+          # Verify API is running
+          if ! curl -f http://localhost:5000/health > /dev/null 2>&1; then
+            echo "::error::API failed to start"
+            exit 1
+          fi
+
+      # Run E2E tests
+      - name: Run E2E Tests
+        env:
+          TestSettings__BaseUrl: "http://localhost:5000"
+          TestSettings__ApiBaseUrl: "http://localhost:5000/api/v1"
+          TestSettings__Headless: "true"
+          TestSettings__ScreenshotOnFailure: "true"
+          TestSettings__VideoRecording: "true"
+          TestSettings__TestTimeout: "30000"
+        run: |
+          dotnet test YoutubeRag.Tests.E2E/YoutubeRag.Tests.E2E.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=e2e-results.trx" \
+            --logger "console;verbosity=detailed" \
+            --settings YoutubeRag.Tests.E2E/.runsettings \
+            --results-directory ./TestResults/E2E
+
+      # Stop API server
+      - name: Stop API Server
+        if: always()
+        run: |
+          if [ ! -z "${{ env.API_PID }}" ]; then
+            kill ${{ env.API_PID }} || true
+          fi
+
+      # Upload test results
+      - name: Upload E2E Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            TestResults/E2E/**/*.trx
+            TestResults/E2E/**/*.xml
+            TestResults/E2E/**/report.html
+          retention-days: 30
+
+      # Upload screenshots and traces on failure
+      - name: Upload Test Artifacts on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-test-artifacts
+          path: |
+            TestResults/Screenshots/
+            TestResults/Videos/
+            TestResults/*.zip
+          retention-days: 30
+
+      # Create test summary
+      - name: Create Test Summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "TestResults/E2E/e2e-results.trx" ]; then
+            # Parse TRX file for summary (simplified)
+            echo "✅ E2E tests completed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check artifacts for detailed results" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ E2E test results not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Publish test report
+      - name: Publish E2E Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: E2E Test Report
+          path: TestResults/E2E/*.trx
+          reporter: dotnet-trx
+          fail-on-error: false

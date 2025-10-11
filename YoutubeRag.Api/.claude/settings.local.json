@@ -64,7 +64,12 @@
       "Bash(dotnet husky:*)",
       "Bash(dotnet format:*)",
       "Bash(Select-String -Pattern \"(error|Build FAILED|Build succeeded)\")",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "Bash(dotnet new:*)",
+      "Bash(pwsh:*)",
+      "Bash(dotnet tool update:*)",
+      "Bash(dotnet sln add:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []

@@ -540,7 +540,7 @@ public partial class Program
         app.UseHttpMetrics();
 
         // Custom Business Metrics
-        app.UsePrometheusMetrics();
+        // app.UsePrometheusMetrics(); // TODO: Implement custom metrics middleware
 
         // Health Check Endpoints
         // Main health endpoint - returns detailed JSON response with all checks
