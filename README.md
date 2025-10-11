@@ -22,6 +22,7 @@ A powerful RAG (Retrieval-Augmented Generation) system for YouTube video transcr
 - **🧪 99.3% Test Coverage**: Comprehensive integration test suite with 422+ tests
 - **🔄 CI/CD Pipeline**: Fully automated testing, building, and deployment
 - **🐳 Docker Ready**: Cross-platform support with Docker Compose
+- **📊 Prometheus Metrics**: Built-in monitoring with Prometheus & Grafana
 
 ## 🚀 Quick Start (5 Minutes)
 
@@ -128,6 +129,7 @@ Creates:
 ### Development
 - **[DevOps Implementation Plan](docs/devops/DEVOPS_IMPLEMENTATION_PLAN.md)** - Complete DevOps roadmap
 - **[Pre-Commit Hooks Guide](docs/PRE_COMMIT_HOOKS.md)** - Automated code quality checks
+- **[Prometheus Metrics Guide](docs/PROMETHEUS_METRICS.md)** - Monitoring and observability
 - **[CI/CD Pipeline Guide](GITHUB_CI_LESSONS_LEARNED.md)** - Troubleshooting CI/CD issues
 - **[Test Suite Documentation](TEST_RESULTS_REPORT.md)** - 422 tests, 99.3% pass rate
 
@@ -330,6 +332,31 @@ docker-compose down -v
 # Rebuild images
 docker-compose build --no-cache
 ```
+
+### Monitoring & Metrics
+
+**Prometheus & Grafana** (Optional):
+
+```bash
+# Start monitoring stack (Prometheus + Grafana)
+docker-compose --profile monitoring up -d
+
+# Access monitoring services:
+# - Prometheus: http://localhost:9090
+# - Grafana: http://localhost:3001 (admin/admin)
+# - Metrics endpoint: http://localhost:5000/metrics
+```
+
+**Available Metrics:**
+- HTTP request rates, latencies, status codes
+- Video processing metrics (total, success rate, duration)
+- Transcription metrics (duration, model usage, language distribution)
+- Search query metrics (latency, types, success rate)
+- Background job metrics (active count, execution status)
+- Database connection pool stats
+- Cache hit/miss rates
+
+See [Prometheus Metrics Guide](docs/PROMETHEUS_METRICS.md) for full documentation.
 
 ## 🐛 Troubleshooting
 

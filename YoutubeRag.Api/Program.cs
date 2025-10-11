@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
@@ -535,6 +536,12 @@ public partial class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
+        // Prometheus HTTP Metrics - track HTTP request metrics
+        app.UseHttpMetrics();
+
+        // Custom Business Metrics
+        app.UsePrometheusMetrics();
+
         // Health Check Endpoints
         // Main health endpoint - returns detailed JSON response with all checks
         app.MapHealthChecks("/health", new HealthCheckOptions
@@ -596,6 +603,18 @@ public partial class Program
             operation.Description = "Returns 200 if the application process is alive and responding";
             return operation;
         });
+
+        // Prometheus Metrics Endpoint
+        app.MapMetrics("/metrics")
+            .WithTags("📊 Metrics")
+            .WithName("PrometheusMetrics")
+            .WithOpenApi(operation =>
+            {
+                operation.Summary = "Prometheus metrics endpoint";
+                operation.Description = "Returns metrics in Prometheus format for monitoring and alerting";
+                return operation;
+            })
+            .AllowAnonymous();
 
         // API Routes
         app.MapControllers();
