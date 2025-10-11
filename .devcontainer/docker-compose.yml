@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Development container
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../:/workspace:cached
+      # Persist bash history
+      - devcontainer-bashhistory:/commandhistory
+      # Mount Docker socket for Docker-in-Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: sleep infinity
+    network_mode: service:mysql
+    environment:
+      # .NET Configuration
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+      - DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+      - DOTNET_USE_POLLING_FILE_WATCHER=true
+
+      # Database Connection
+      - ConnectionStrings__DefaultConnection=Server=localhost;Port=3306;Database=youtube_rag_db;User=youtube_rag_user;Password=youtube_rag_password;AllowPublicKeyRetrieval=True;
+
+      # Redis Configuration
+      - Redis__Configuration=localhost:6379
+
+      # JWT Configuration (development only)
+      - Jwt__Secret=development-secret-key-min-32-chars-long-for-jwt-token-signing
+      - Jwt__Issuer=YoutubeRag.Api
+      - Jwt__Audience=YoutubeRag.Client
+      - Jwt__ExpiryMinutes=60
+
+      # Storage Configuration
+      - Storage__TempPath=/tmp/youtube-rag
+      - Storage__VideosPath=/workspace/data/videos
+      - Storage__AudioPath=/workspace/data/audio
+      - Storage__ModelsPath=/workspace/data/models
+
+      # Whisper Configuration (Local mode)
+      - Whisper__Provider=Local
+      - Whisper__ModelsDirectory=/workspace/data/models
+      - Whisper__DefaultModel=base
+      - Whisper__Language=auto
+
+      # Hangfire Configuration
+      - Hangfire__WorkerCount=2
+      - Hangfire__DashboardEnabled=true
+
+      # Logging
+      - Serilog__MinimumLevel__Default=Debug
+      - Serilog__MinimumLevel__Override__Microsoft=Information
+      - Serilog__MinimumLevel__Override__System=Warning
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: youtube_rag_db
+      MYSQL_USER: youtube_rag_user
+      MYSQL_PASSWORD: youtube_rag_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+      - "5000:5000"  # API port (shared via network_mode)
+      - "8080:8080"  # Adminer
+      - "8081:8081"  # Redis Commander
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    network_mode: service:mysql
+
+  # Adminer - MySQL Web UI
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: localhost
+      ADMINER_DESIGN: pepa-linha
+    network_mode: service:mysql
+    depends_on:
+      - mysql
+
+  # Redis Commander - Redis Web UI
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:localhost:6379
+    network_mode: service:mysql
+    depends_on:
+      - redis
+
+volumes:
+  mysql-data:
+  redis-data:
+  devcontainer-bashhistory:

@@ -1,0 +1,72 @@
+# .dockerignore for Dev Container
+# Excludes files from being copied to the Docker image
+
+# Git
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# IDE directories
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test results
+**/TestResults/
+**/*.trx
+coverage/
+*.coverage
+
+# NuGet
+.nuget/
+**/.nuget/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Data directories (will be mounted as volumes)
+data/
+logs/
+temp/
+
+# Docker
+docker-compose.yml
+docker-compose.override.yml
+Dockerfile
+.dockerignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Documentation (not needed in container)
+*.md
+docs/
+
+# CI/CD
+.github/
+azure-pipelines.yml
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+yarn.lock

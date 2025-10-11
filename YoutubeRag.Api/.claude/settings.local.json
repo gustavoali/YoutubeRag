@@ -62,7 +62,9 @@
       "Bash(dotnet new tool-manifest)",
       "Bash(dotnet tool install:*)",
       "Bash(dotnet husky:*)",
-      "Bash(dotnet format:*)"
+      "Bash(dotnet format:*)",
+      "Bash(Select-String -Pattern \"(error|Build FAILED|Build succeeded)\")",
+      "Bash(Select-Object -First 5)"
     ],
     "deny": [],
     "ask": []

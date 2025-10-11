@@ -76,6 +76,30 @@ dotnet run --project YoutubeRag.Api
 # - Health Check: http://localhost:5000/health
 ```
 
+### Alternative: VS Code Dev Container (Recommended)
+
+**Zero setup required!** Use Visual Studio Code Dev Containers for instant, consistent development environment:
+
+**Prerequisites:**
+- Docker Desktop
+- VS Code with Remote-Containers extension
+
+**Setup (1 click):**
+1. Clone the repository
+2. Open in VS Code
+3. Click "Reopen in Container" when prompted
+4. Wait 5-10 minutes for initial setup
+5. Start coding! ✨
+
+**What you get:**
+- ✅ Complete dev environment in Docker
+- ✅ All tools pre-installed (.NET, FFmpeg, MySQL, Redis)
+- ✅ Database migrations run automatically
+- ✅ VS Code extensions auto-configured
+- ✅ Works identically on Windows, Mac, Linux
+
+See [.devcontainer/README.md](.devcontainer/README.md) for details.
+
 ### Seeding Test Data
 
 ```powershell
@@ -97,6 +121,7 @@ Creates:
 
 ### Getting Started
 - **[5-Minute Quick Start](#-quick-start-5-minutes)** - This README
+- **[VS Code Dev Container](.devcontainer/README.md)** - Zero-setup Docker development
 - **[Developer Setup Guide](docs/devops/DEVELOPER_SETUP_GUIDE.md)** - Detailed setup instructions
 - **[Environment Configuration](docs/devops/ENVIRONMENT_CONSISTENCY_ARCHITECTURE.md)** - Architecture & config
 
