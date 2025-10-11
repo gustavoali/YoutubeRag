@@ -56,7 +56,8 @@
       "Bash(Select-String -Pattern \"(Passed|Failed|Total tests)\")",
       "Bash(Select-String -Pattern \"(Failed|Passed|Total tests)\" -Context 2)",
       "Bash(Select-String -Pattern \"(Test Run|Total tests|Passed|Failed|Skipped)\")",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

@@ -77,6 +77,10 @@ public partial class Program
     var configuration = builder.Configuration;
     var environment = builder.Environment;
 
+    // DEVOPS-007: Validate environment configuration early (fail fast with clear messages)
+    YoutubeRag.Api.Configuration.EnvironmentValidator.ValidateConfiguration(configuration, environment);
+    YoutubeRag.Api.Configuration.EnvironmentValidator.DisplayConfigurationSummary(configuration, environment);
+
     // Bind configuration sections
     var appSettings = new AppSettings();
     configuration.GetSection(AppSettings.SectionName).Bind(appSettings);
