@@ -1,0 +1,210 @@
+# YoutubeRag.NET Security Configuration
+# This file defines security scanning thresholds and policies
+
+version: "1.0"
+
+# Global Security Settings
+security:
+  # Overall security level (strict, moderate, relaxed)
+  level: strict
+
+  # Fail build on security issues
+  fail_on_critical: true
+  fail_on_high: true
+  fail_on_medium: false
+  fail_on_low: false
+
+# Dependency Scanning Configuration
+dependencies:
+  # NuGet package vulnerability scanning
+  nuget:
+    enabled: true
+    include_transitive: true
+    severity_threshold: "high"
+
+  # OWASP Dependency Check
+  owasp:
+    enabled: true
+    nvd_api_delay: 4000
+    suppression_file: ".security/suppressions.xml"
+
+  # Snyk scanning
+  snyk:
+    enabled: true
+    severity_threshold: "high"
+    fail_on_issues: false  # Optional, requires SNYK_TOKEN
+
+# Container Security Configuration
+containers:
+  # Trivy container scanner
+  trivy:
+    enabled: true
+    severity: "CRITICAL,HIGH,MEDIUM"
+    ignore_unfixed: false
+    skip_db_update: false
+
+  # Grype container scanner
+  grype:
+    enabled: true
+    severity_cutoff: "high"
+    fail_build: false
+
+  # Docker Scout
+  docker_scout:
+    enabled: true
+    severities: "critical,high"
+    only_fixed: false
+
+# Static Application Security Testing (SAST)
+sast:
+  # CodeQL analysis
+  codeql:
+    enabled: true
+    languages: ["csharp", "javascript"]
+    queries: "security-and-quality"
+
+  # Security Code Scan for .NET
+  security_code_scan:
+    enabled: true
+    export_sarif: true
+
+  # Semgrep
+  semgrep:
+    enabled: true
+    config:
+      - "p/security-audit"
+      - "p/csharp"
+      - "p/owasp-top-ten"
+      - "p/r2c-security-audit"
+
+# Secret Scanning Configuration
+secrets:
+  # GitLeaks
+  gitleaks:
+    enabled: true
+    config: ".gitleaks.toml"  # Optional custom config
+
+  # TruffleHog
+  trufflehog:
+    enabled: true
+    only_verified: true
+
+  # Allowed patterns (paths to exclude)
+  exclude_paths:
+    - "**/*.md"
+    - "**/test/**"
+    - "**/*.example"
+
+# Infrastructure as Code (IaC) Scanning
+iac:
+  # Checkov
+  checkov:
+    enabled: true
+    frameworks:
+      - dockerfile
+      - kubernetes
+      - helm
+    skip_checks:
+      - CKV_DOCKER_2  # HEALTHCHECK instruction missing
+      - CKV_DOCKER_3  # USER instruction missing
+
+  # Terrascan
+  terrascan:
+    enabled: true
+    iac_types:
+      - docker
+    policies:
+      - docker
+
+# License Compliance
+licenses:
+  enabled: true
+
+  # Allowed license types
+  allowed:
+    - MIT
+    - Apache-2.0
+    - BSD-2-Clause
+    - BSD-3-Clause
+    - ISC
+    - LGPL-2.1
+    - LGPL-3.0
+
+  # Prohibited license types (will fail build)
+  prohibited:
+    - GPL-2.0
+    - GPL-3.0
+    - AGPL-3.0
+
+  # Report unknown licenses
+  warn_on_unknown: true
+
+# Security Headers & API Security
+api_security:
+  # Required security headers
+  required_headers:
+    - X-Content-Type-Options
+    - X-Frame-Options
+    - X-XSS-Protection
+    - Strict-Transport-Security
+    - Content-Security-Policy
+
+  # CORS configuration review
+  cors_check: true
+
+  # Authentication/Authorization checks
+  auth_check: true
+
+# Notification Configuration
+notifications:
+  # Slack notifications
+  slack:
+    enabled: false  # Requires SLACK_WEBHOOK secret
+    on_failure: true
+    on_success: false
+
+  # Email notifications
+  email:
+    enabled: false
+    recipients: []
+
+  # GitHub Issues
+  github_issues:
+    enabled: true
+    create_issue_on_critical: true
+    labels: ["security", "vulnerability"]
+
+# Reporting Configuration
+reporting:
+  # SARIF upload to GitHub Security
+  github_security:
+    enabled: true
+
+  # Artifact retention
+  artifacts:
+    retention_days: 30
+
+  # Summary reports
+  summary:
+    enabled: true
+    include_in_pr: true
+
+# Exclusions & Suppressions
+exclusions:
+  # Files to exclude from all scans
+  files:
+    - "**/node_modules/**"
+    - "**/bin/**"
+    - "**/obj/**"
+    - "**/.git/**"
+    - "**/packages/**"
+
+  # Paths to exclude from specific scans
+  paths:
+    secrets:
+      - "**/test-data/**"
+      - "**/*.test.cs"
+
+  # Known false positives (CVE IDs)
+  cve_suppressions:
+    # - CVE-2021-12345  # Reason: False positive, not applicable
