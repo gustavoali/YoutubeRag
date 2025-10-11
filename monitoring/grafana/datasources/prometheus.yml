@@ -1,0 +1,22 @@
+# Grafana Datasource Configuration for Prometheus
+# This file is automatically loaded by Grafana on startup
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 10s
+      queryTimeout: 60s
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.45.0
+      cacheLevel: High
+      incrementalQuerying: true
+      incrementalQueryOverlapWindow: 10m
