@@ -347,6 +347,18 @@ docker-compose --profile monitoring up -d
 # - Metrics endpoint: http://localhost:5000/metrics
 ```
 
+**Pre-configured Dashboard:**
+
+El sistema incluye un dashboard completo de Grafana que se carga automáticamente con 14 paneles:
+
+- **API Metrics**: Request rate, response time p95, error rate 5xx
+- **Video Processing**: Processing rate, storage usage
+- **Transcription**: Duration p95/p50, distribution by language
+- **Search**: Query rate, latency p99/p50
+- **Background Jobs**: Active count, execution rate
+- **Infrastructure**: DB pool usage, cache hit rate
+- **Authentication**: Login attempts by result
+
 **Available Metrics:**
 - HTTP request rates, latencies, status codes
 - Video processing metrics (total, success rate, duration)
@@ -356,7 +368,9 @@ docker-compose --profile monitoring up -d
 - Database connection pool stats
 - Cache hit/miss rates
 
-See [Prometheus Metrics Guide](docs/PROMETHEUS_METRICS.md) for full documentation.
+**Documentation:**
+- [Prometheus Metrics Guide](docs/PROMETHEUS_METRICS.md) - All available metrics
+- [Grafana Dashboards Guide](docs/GRAFANA_DASHBOARDS.md) - Dashboard usage and customization
 
 ## 🐛 Troubleshooting
 
