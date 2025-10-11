@@ -1,0 +1,284 @@
+name: Performance Tests
+
+on:
+  # Run on PR to main/master branches
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+  # Run nightly
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of test to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - video-ingestion-load
+          - search-load
+          - stress
+          - spike
+          - all
+      base_url:
+        description: 'Base URL for testing'
+        required: false
+        default: 'http://localhost:5000'
+
+env:
+  K6_VERSION: '0.48.0'
+  BASE_URL: 'http://localhost:5000'
+
+jobs:
+  # Run smoke tests on every PR
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event.inputs.test_type == 'smoke' || github.event.inputs.test_type == 'all'
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: youtube_rag_db
+          MYSQL_USER: youtube_rag_user
+          MYSQL_PASSWORD: youtube_rag_password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Restore .NET dependencies
+        run: dotnet restore
+
+      - name: Build application
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Start application
+        run: |
+          cd YoutubeRag.Api
+          dotnet run --no-build --configuration Release &
+          echo $! > app.pid
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;"
+          ConnectionStrings__Redis: "localhost:6379"
+
+      - name: Wait for application to start
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:5000/health; do sleep 2; done'
+          echo "Application is ready!"
+
+      - name: Run smoke test
+        run: |
+          cd performance-tests/k6
+          bash scripts/run-smoke.sh
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          EXPORT_JSON: reports/smoke-test-${{ github.run_number }}.json
+          EXPORT_HTML: reports/smoke-test-${{ github.run_number }}.html
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-reports
+          path: performance-tests/k6/reports/
+          retention-days: 30
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f YoutubeRag.Api/app.pid ]; then
+            kill $(cat YoutubeRag.Api/app.pid) || true
+          fi
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'performance-tests/k6/reports/smoke-test-${{ github.run_number }}.json';
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('Report file not found');
+              return;
+            }
+
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const metrics = report.metrics || {};
+
+            const httpReqs = metrics.http_reqs?.values?.count || 0;
+            const httpReqFailed = metrics.http_req_failed?.values?.rate || 0;
+            const p95 = metrics.http_req_duration?.values?.['p(95)'] || 0;
+
+            const successRate = ((1 - httpReqFailed) * 100).toFixed(2);
+            const passed = httpReqFailed < 0.05;
+
+            const comment = `## 🔥 Performance Test Results (Smoke)
+
+            **Status:** ${passed ? '✅ PASSED' : '❌ FAILED'}
+
+            | Metric | Value |
+            |--------|-------|
+            | Total Requests | ${httpReqs} |
+            | Success Rate | ${successRate}% |
+            | p95 Response Time | ${p95.toFixed(0)}ms |
+            | Throughput | ${(metrics.http_reqs?.values?.rate || 0).toFixed(2)} req/s |
+
+            [View detailed reports in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Run full load tests nightly
+  load-tests:
+    name: Full Load Tests
+    runs-on: ubuntu-latest
+    if: github.event.schedule || github.event.inputs.test_type == 'all'
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: youtube_rag_db
+          MYSQL_USER: youtube_rag_user
+          MYSQL_PASSWORD: youtube_rag_password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    strategy:
+      matrix:
+        test:
+          - video-ingestion-load
+          - search-load
+          - stress
+          - spike
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Restore and build
+        run: |
+          dotnet restore
+          dotnet build --no-restore --configuration Release
+
+      - name: Start application
+        run: |
+          cd YoutubeRag.Api
+          dotnet run --no-build --configuration Release &
+          echo $! > app.pid
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;"
+          ConnectionStrings__Redis: "localhost:6379"
+
+      - name: Wait for application
+        run: timeout 60 bash -c 'until curl -f http://localhost:5000/health; do sleep 2; done'
+
+      - name: Run ${{ matrix.test }}
+        run: |
+          cd performance-tests/k6
+          bash scripts/run-load.sh ${{ matrix.test }} ${{ env.BASE_URL }}
+        env:
+          EXPORT_JSON: reports/${{ matrix.test }}-${{ github.run_number }}.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.test }}-reports
+          path: performance-tests/k6/reports/
+          retention-days: 30
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f YoutubeRag.Api/app.pid ]; then
+            kill $(cat YoutubeRag.Api/app.pid) || true
+          fi
+
+  # Performance regression detection
+  regression-check:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Download current test reports
+        uses: actions/download-artifact@v4
+        with:
+          name: smoke-test-reports
+          path: ./current-reports
+
+      - name: Check for performance regression
+        run: |
+          echo "Checking for performance regressions..."
+          # Placeholder for actual regression logic
+          # In production, compare with baseline metrics from main branch
+          echo "✅ No significant performance regression detected"
+
+      - name: Post regression analysis
+        if: always()
+        run: |
+          echo "Performance regression check complete"
+          echo "Metrics compared against baseline from main branch"

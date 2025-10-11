@@ -1,0 +1,54 @@
+{
+  "videos": [
+    {
+      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "title": "Sample Music Video",
+      "description": "Performance test video 1"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=9bZkp7q19f0",
+      "title": "Gangnam Style",
+      "description": "Performance test video 2"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=kJQP7kiw5Fk",
+      "title": "Despacito",
+      "description": "Performance test video 3"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+      "title": "Shape of You",
+      "description": "Performance test video 4"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=OPf0YbXqDm0",
+      "title": "Uptown Funk",
+      "description": "Performance test video 5"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=hTWKbfoikeg",
+      "title": "Smells Like Teen Spirit",
+      "description": "Performance test video 6"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=fJ9rUzIMcZQ",
+      "title": "Bohemian Rhapsody",
+      "description": "Performance test video 7"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=60ItHLz5WEA",
+      "title": "Faded",
+      "description": "Performance test video 8"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=pRpeEdMmmQ0",
+      "title": "Shake It Off",
+      "description": "Performance test video 9"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=CevxZvSJLk8",
+      "title": "Roar",
+      "description": "Performance test video 10"
+    }
+  ]
+}

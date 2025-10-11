@@ -1,0 +1,79 @@
+{
+  "queries": [
+    {
+      "query": "machine learning tutorial",
+      "complexity": "simple",
+      "expectedResults": 10
+    },
+    {
+      "query": "how to implement neural networks in python",
+      "complexity": "medium",
+      "expectedResults": 15
+    },
+    {
+      "query": "deep learning architecture comparison between transformers and convolutional networks",
+      "complexity": "complex",
+      "expectedResults": 20
+    },
+    {
+      "query": "artificial intelligence",
+      "complexity": "simple",
+      "expectedResults": 25
+    },
+    {
+      "query": "what is the difference between supervised and unsupervised learning",
+      "complexity": "medium",
+      "expectedResults": 12
+    },
+    {
+      "query": "data science",
+      "complexity": "simple",
+      "expectedResults": 30
+    },
+    {
+      "query": "python programming",
+      "complexity": "simple",
+      "expectedResults": 20
+    },
+    {
+      "query": "web development tutorial",
+      "complexity": "simple",
+      "expectedResults": 18
+    },
+    {
+      "query": "docker and kubernetes deployment strategies",
+      "complexity": "medium",
+      "expectedResults": 15
+    },
+    {
+      "query": "react hooks",
+      "complexity": "simple",
+      "expectedResults": 10
+    },
+    {
+      "query": "microservices architecture patterns and best practices",
+      "complexity": "complex",
+      "expectedResults": 22
+    },
+    {
+      "query": "database optimization",
+      "complexity": "medium",
+      "expectedResults": 14
+    },
+    {
+      "query": "cloud computing",
+      "complexity": "simple",
+      "expectedResults": 25
+    },
+    {
+      "query": "REST API design",
+      "complexity": "medium",
+      "expectedResults": 16
+    },
+    {
+      "query": "testing strategies",
+      "complexity": "simple",
+      "expectedResults": 12
+    }
+  ]
+}
