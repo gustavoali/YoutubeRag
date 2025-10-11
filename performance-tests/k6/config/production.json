@@ -1,0 +1,58 @@
+{
+  "baseUrl": "${BASE_URL}",
+  "apiVersion": "v1",
+  "thresholds": {
+    "http_req_duration": ["p(95)<1000", "p(99)<2000"],
+    "http_req_failed": ["rate<0.001"],
+    "http_reqs": ["rate>50"],
+    "iteration_duration": ["p(95)<3000"]
+  },
+  "endpoints": {
+    "auth": {
+      "login": "/api/v1/auth/login",
+      "register": "/api/v1/auth/register",
+      "me": "/api/v1/auth/me"
+    },
+    "videos": {
+      "list": "/api/v1/videos",
+      "ingest": "/api/v1/videos/ingest",
+      "fromUrl": "/api/v1/videos/from-url",
+      "getById": "/api/v1/videos/{videoId}",
+      "progress": "/api/v1/videos/{videoId}/progress",
+      "transcript": "/api/v1/videos/{videoId}/transcript"
+    },
+    "search": {
+      "semantic": "/api/v1/search/semantic",
+      "keyword": "/api/v1/search/keyword",
+      "advanced": "/api/v1/search/advanced",
+      "suggestions": "/api/v1/search/suggestions",
+      "history": "/api/v1/search/history"
+    },
+    "health": {
+      "health": "/health",
+      "ready": "/ready",
+      "live": "/live"
+    }
+  },
+  "testUsers": {
+    "concurrent": 100,
+    "maxUsers": 500
+  },
+  "rampUp": {
+    "duration": "5m",
+    "stages": [
+      { "duration": "5m", "target": 100 },
+      { "duration": "10m", "target": 100 },
+      { "duration": "2m", "target": 0 }
+    ]
+  },
+  "timeouts": {
+    "request": "20s",
+    "connection": "5s"
+  },
+  "tags": {
+    "environment": "production",
+    "team": "performance",
+    "project": "youtube-rag"
+  }
+}

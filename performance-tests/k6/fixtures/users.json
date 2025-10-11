@@ -1,0 +1,59 @@
+{
+  "users": [
+    {
+      "email": "perftest1@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 1"
+    },
+    {
+      "email": "perftest2@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 2"
+    },
+    {
+      "email": "perftest3@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 3"
+    },
+    {
+      "email": "perftest4@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 4"
+    },
+    {
+      "email": "perftest5@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 5"
+    },
+    {
+      "email": "perftest6@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 6"
+    },
+    {
+      "email": "perftest7@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 7"
+    },
+    {
+      "email": "perftest8@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 8"
+    },
+    {
+      "email": "perftest9@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 9"
+    },
+    {
+      "email": "perftest10@example.com",
+      "password": "TestPassword123!",
+      "name": "Performance Test User 10"
+    }
+  ],
+  "testUser": {
+    "email": "test@youtuberag.com",
+    "password": "Test123456!",
+    "name": "Test User"
+  }
+}
