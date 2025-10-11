@@ -1,10 +1,10 @@
+using Hangfire;
+using Hangfire.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Data;
-using Hangfire;
-using Hangfire.Storage;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -101,6 +101,7 @@ public class JobCleanupService
                     // Simple JSON manipulation - in production use a proper JSON library
                     job.Metadata = job.Metadata.TrimEnd('}') + ",\"archived\":true}";
                 }
+
                 job.UpdatedAt = DateTime.UtcNow;
             }
 

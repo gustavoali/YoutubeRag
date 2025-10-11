@@ -1,11 +1,11 @@
-using AutoMapper;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using AutoMapper;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using YoutubeRag.Application.DTOs.Auth;
 using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Application.Interfaces;

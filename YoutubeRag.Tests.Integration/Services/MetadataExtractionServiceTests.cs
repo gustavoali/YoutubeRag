@@ -1,10 +1,10 @@
+using System.Net;
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Net;
 using Xunit;
 using YoutubeExplode;
 using YoutubeExplode.Common;

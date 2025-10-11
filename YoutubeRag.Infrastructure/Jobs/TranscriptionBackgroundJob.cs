@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
-using YoutubeRag.Application.Services;
-using YoutubeRag.Application.Interfaces;
-using YoutubeRag.Domain.Enums;
 using Hangfire;
+using Microsoft.Extensions.Logging;
+using YoutubeRag.Application.Interfaces;
+using YoutubeRag.Application.Services;
+using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Infrastructure.Jobs;
 
@@ -61,7 +61,9 @@ public class TranscriptionBackgroundJob
     private async Task UpdateJobHangfireId(string videoId, string hangfireJobId, JobType jobType, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(hangfireJobId))
+        {
             return;
+        }
 
         try
         {

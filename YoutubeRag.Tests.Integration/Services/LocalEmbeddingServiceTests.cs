@@ -379,6 +379,7 @@ public class LocalEmbeddingServiceTests
         {
             sum += value * value;
         }
+
         return MathF.Sqrt(sum);
     }
 

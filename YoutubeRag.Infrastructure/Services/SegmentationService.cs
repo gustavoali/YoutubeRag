@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Entities;
 
@@ -56,6 +56,7 @@ public partial class SegmentationService : ISegmentationService
                 {
                     segments.Add(segmentText);
                 }
+
                 currentSegment.Clear();
             }
 
@@ -227,7 +228,9 @@ public partial class SegmentationService : ISegmentationService
             foreach (var paragraph in paragraphs)
             {
                 if (string.IsNullOrWhiteSpace(paragraph))
+                {
                     continue;
+                }
 
                 var paragraphSegments = await SegmentParagraphAsync(paragraph, options);
                 segments.AddRange(paragraphSegments);
@@ -270,7 +273,9 @@ public partial class SegmentationService : ISegmentationService
         {
             var trimmedSentence = sentence.Trim();
             if (string.IsNullOrWhiteSpace(trimmedSentence))
+            {
                 continue;
+            }
 
             // Check if adding this sentence exceeds max length
             var potentialLength = currentSegment.Length + trimmedSentence.Length + (currentSegment.Length > 0 ? 1 : 0);
@@ -290,6 +295,7 @@ public partial class SegmentationService : ISegmentationService
             {
                 currentSegment.Append(' ');
             }
+
             currentSegment.Append(trimmedSentence);
 
             // If single sentence is too long, handle it specially
@@ -337,6 +343,7 @@ public partial class SegmentationService : ISegmentationService
             {
                 sentences.Add(sentence.Trim());
             }
+
             lastIndex = match.Index + match.Length;
         }
 
@@ -367,7 +374,9 @@ public partial class SegmentationService : ISegmentationService
         foreach (var word in words)
         {
             if (string.IsNullOrWhiteSpace(word))
+            {
                 continue;
+            }
 
             // HARD LIMIT ENFORCEMENT: If adding this word would exceed maxLength, save current part
             if (currentPart.Length + word.Length + 1 > maxLength && currentPart.Length > 0)
@@ -411,6 +420,7 @@ public partial class SegmentationService : ISegmentationService
             {
                 currentPart.Append(' ');
             }
+
             currentPart.Append(word);
 
             // SAFETY CHECK: Even after adding a normal word, verify we haven't exceeded maxLength
@@ -530,7 +540,9 @@ public partial class SegmentationService : ISegmentationService
     private string GetFirstNCharacters(string text, int n)
     {
         if (string.IsNullOrEmpty(text))
+        {
             return string.Empty;
+        }
 
         return text.Length <= n ? text : text.Substring(0, n);
     }
@@ -541,7 +553,9 @@ public partial class SegmentationService : ISegmentationService
     private string GetLastNCharacters(string text, int n)
     {
         if (string.IsNullOrEmpty(text))
+        {
             return string.Empty;
+        }
 
         return text.Length <= n ? text : text.Substring(text.Length - n);
     }

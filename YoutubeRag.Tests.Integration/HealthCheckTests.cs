@@ -1,7 +1,7 @@
 using System.Net;
 using FluentAssertions;
-using YoutubeRag.Tests.Integration.Infrastructure;
 using Xunit;
+using YoutubeRag.Tests.Integration.Infrastructure;
 
 namespace YoutubeRag.Tests.Integration;
 

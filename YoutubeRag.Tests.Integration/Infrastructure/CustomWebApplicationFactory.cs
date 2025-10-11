@@ -1,14 +1,14 @@
+using System.Data.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using YoutubeRag.Infrastructure.Data;
 using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Infrastructure.Data;
 using YoutubeRag.Infrastructure.Services.Mock;
-using System.Data.Common;
 
 namespace YoutubeRag.Tests.Integration.Infrastructure;
 
@@ -68,6 +68,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             {
                 services.Remove(backgroundJobServiceDescriptor);
             }
+
             services.AddScoped<IBackgroundJobService, MockBackgroundJobService>();
 
             // Add in-memory database for testing with unique database name

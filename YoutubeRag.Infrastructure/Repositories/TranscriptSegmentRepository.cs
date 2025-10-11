@@ -1,7 +1,7 @@
+using System.Text.Json;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Infrastructure.Data;

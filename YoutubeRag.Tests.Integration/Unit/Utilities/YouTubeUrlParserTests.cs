@@ -1,5 +1,5 @@
-using Xunit;
 using FluentAssertions;
+using Xunit;
 using YoutubeRag.Application.Utilities;
 
 namespace YoutubeRag.Tests.Integration.Unit.Utilities;

@@ -54,10 +54,14 @@ public class TranscriptSegmentMappingProfile : Profile
     private static string? TruncateText(string? text, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(text))
+        {
             return text;
+        }
 
         if (text.Length <= maxLength)
+        {
             return text;
+        }
 
         return text.Substring(0, maxLength - 3) + "...";
     }
@@ -65,7 +69,9 @@ public class TranscriptSegmentMappingProfile : Profile
     private static string? GenerateYouTubeTimestampUrl(TranscriptSegment segment)
     {
         if (segment.Video == null || string.IsNullOrEmpty(segment.Video.YouTubeId))
+        {
             return null;
+        }
 
         var timestamp = (int)segment.StartTime;
         return $"https://www.youtube.com/watch?v={segment.Video.YouTubeId}&t={timestamp}s";

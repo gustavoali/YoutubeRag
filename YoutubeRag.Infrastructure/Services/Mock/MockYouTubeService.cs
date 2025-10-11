@@ -1,5 +1,5 @@
-using YoutubeRag.Application.Interfaces;
 using Microsoft.Extensions.Logging;
+using YoutubeRag.Application.Interfaces;
 
 namespace YoutubeRag.Infrastructure.Services;
 

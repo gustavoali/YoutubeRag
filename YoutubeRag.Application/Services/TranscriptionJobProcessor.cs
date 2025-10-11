@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Configuration;
 using YoutubeRag.Application.DTOs.Progress;
@@ -6,7 +7,6 @@ using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
-using System.Text.Json;
 
 namespace YoutubeRag.Application.Services;
 
@@ -628,17 +628,17 @@ public class TranscriptionJobProcessor
             }
 
             // Validar timestamps crecientes
-            if (i > 0 && segment.StartTime < segments[i-1].StartTime)
+            if (i > 0 && segment.StartTime < segments[i - 1].StartTime)
             {
                 _logger.LogWarning("Timestamps not increasing at segment {Index}. Current: {Current}, Previous: {Previous}",
-                    i, segment.StartTime, segments[i-1].StartTime);
+                    i, segment.StartTime, segments[i - 1].StartTime);
             }
 
             // Validar no overlaps: EndTime[i-1] <= StartTime[i]
-            if (i > 0 && segments[i-1].EndTime > segment.StartTime)
+            if (i > 0 && segments[i - 1].EndTime > segment.StartTime)
             {
                 _logger.LogWarning("Overlap detected between segments {Index1} and {Index2}. EndTime[{Index1}]={EndTime} > StartTime[{Index2}]={StartTime}",
-                    i-1, i, i-1, segments[i-1].EndTime, i, segment.StartTime);
+                    i - 1, i, i - 1, segments[i - 1].EndTime, i, segment.StartTime);
             }
 
             // Validar VideoId válido

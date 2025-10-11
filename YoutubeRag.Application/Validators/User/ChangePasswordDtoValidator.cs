@@ -41,7 +41,10 @@ public class ChangePasswordDtoValidator : AbstractValidator<ChangePasswordDto>
     /// </summary>
     private bool NotContainCommonPatterns(string password)
     {
-        if (string.IsNullOrEmpty(password)) return false;
+        if (string.IsNullOrEmpty(password))
+        {
+            return false;
+        }
 
         var commonPatterns = new[]
         {

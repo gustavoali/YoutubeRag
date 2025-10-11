@@ -1,10 +1,10 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Data;
-using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -49,7 +49,9 @@ public class VideoProcessingService : IVideoProcessingService
 
             // Validate YouTube URL
             if (!await _youTubeService.IsValidYouTubeUrlAsync(url))
+            {
                 throw new ArgumentException($"Invalid YouTube URL: {url}");
+            }
 
             // Get video info from YouTube
             var videoInfo = await _youTubeService.GetVideoInfoAsync(url);
@@ -174,9 +176,11 @@ public class VideoProcessingService : IVideoProcessingService
     {
         try
         {
-             var video = await _context.Videos.FindAsync(videoId);
+            var video = await _context.Videos.FindAsync(videoId);
             if (video == null)
+            {
                 throw new ArgumentException($"Video not found: {videoId}");
+            }
 
             var jobs = await _context.Jobs
                 .Where(j => j.VideoId == videoId)
@@ -215,7 +219,9 @@ public class VideoProcessingService : IVideoProcessingService
         {
             var video = await _context.Videos.FindAsync(videoId);
             if (video == null)
+            {
                 return false;
+            }
 
             if (video.Status == VideoStatus.Processing)
             {
@@ -257,7 +263,10 @@ public class VideoProcessingService : IVideoProcessingService
         try
         {
             var video = await context.Videos.FindAsync(videoId);
-            if (video == null) return;
+            if (video == null)
+            {
+                return;
+            }
 
             video.Status = VideoStatus.Processing;
             await UpdateVideoProgressScoped(context, video, 5, "Starting download...");
@@ -310,7 +319,10 @@ public class VideoProcessingService : IVideoProcessingService
         try
         {
             var video = await _context.Videos.FindAsync(videoId);
-            if (video == null) return;
+            if (video == null)
+            {
+                return;
+            }
 
             video.Status = VideoStatus.Processing;
             await UpdateVideoProgress(video, 5, "Processing file...");
@@ -367,15 +379,31 @@ public class VideoProcessingService : IVideoProcessingService
 
     private string GetStageStatus(int overallProgress, int stageStart, int stageEnd)
     {
-        if (overallProgress < stageStart) return "pending";
-        if (overallProgress >= stageEnd) return "completed";
+        if (overallProgress < stageStart)
+        {
+            return "pending";
+        }
+
+        if (overallProgress >= stageEnd)
+        {
+            return "completed";
+        }
+
         return "running";
     }
 
     private int GetStageProgress(int overallProgress, int stageStart, int stageEnd)
     {
-        if (overallProgress < stageStart) return 0;
-        if (overallProgress >= stageEnd) return 100;
+        if (overallProgress < stageStart)
+        {
+            return 0;
+        }
+
+        if (overallProgress >= stageEnd)
+        {
+            return 100;
+        }
+
         return (int)((double)(overallProgress - stageStart) / (stageEnd - stageStart) * 100);
     }
 
@@ -393,7 +421,10 @@ public class VideoProcessingService : IVideoProcessingService
 
     private DateTime? EstimateCompletion(int progress)
     {
-        if (progress >= 100) return null;
+        if (progress >= 100)
+        {
+            return null;
+        }
 
         var remainingProgress = 100 - progress;
         var estimatedMinutes = remainingProgress * 0.1; // Rough estimate: 0.1 minutes per percent

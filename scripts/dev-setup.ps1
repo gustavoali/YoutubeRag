@@ -238,8 +238,31 @@ try {
 
 Write-Host ""
 
+# Step 6.5: Install Git Hooks
+Write-Info "Step 6.5/9: Installing Git hooks (Husky.NET)..."
+Write-Host ""
+
+try {
+    # Restore .NET local tools (including Husky)
+    Write-Info "  Restoring .NET tools..."
+    dotnet tool restore --verbosity quiet
+    Write-Success "  ✓ .NET tools restored"
+
+    # Install Git hooks
+    Write-Info "  Installing pre-commit hooks..."
+    dotnet husky install
+    Write-Success "  ✓ Git hooks installed"
+    Write-Info "  → Pre-commit: Code formatting + Build check"
+    Write-Info "  → Pre-push: Unit tests"
+} catch {
+    Write-Warning "  ⚠ Git hooks installation skipped (non-critical)"
+    Write-Info "  You can install manually later with: dotnet husky install"
+}
+
+Write-Host ""
+
 # Step 7: Build Solution
-Write-Info "Step 7/8: Building solution..."
+Write-Info "Step 7/9: Building solution..."
 Write-Host ""
 
 try {
@@ -253,7 +276,7 @@ try {
 Write-Host ""
 
 # Step 8: Database Migrations
-Write-Info "Step 8/8: Running database migrations..."
+Write-Info "Step 8/9: Running database migrations..."
 Write-Host ""
 
 # Check if EF Core tools are installed
@@ -325,6 +348,7 @@ Write-Success "✓ All prerequisites verified"
 Write-Success "✓ Environment configured"
 Write-Success "✓ Docker services running"
 Write-Success "✓ Dependencies restored"
+Write-Success "✓ Git hooks installed (pre-commit + pre-push)"
 Write-Success "✓ Solution built"
 Write-Success "✓ Database initialized"
 Write-Host ""

@@ -76,15 +76,24 @@ public class UpdateTranscriptSegmentDtoValidator : AbstractValidator<UpdateTrans
     /// </summary>
     private bool NotContainControlCharacters(string? text)
     {
-        if (string.IsNullOrEmpty(text)) return true;
+        if (string.IsNullOrEmpty(text))
+        {
+            return true;
+        }
 
         foreach (char c in text)
         {
             // Allow common whitespace characters
-            if (c == '\n' || c == '\r' || c == '\t') continue;
+            if (c == '\n' || c == '\r' || c == '\t')
+            {
+                continue;
+            }
 
             // Reject other control characters
-            if (char.IsControl(c)) return false;
+            if (char.IsControl(c))
+            {
+                return false;
+            }
         }
 
         return true;
@@ -95,15 +104,24 @@ public class UpdateTranscriptSegmentDtoValidator : AbstractValidator<UpdateTrans
     /// </summary>
     private bool HaveReasonableTimeRange(UpdateTranscriptSegmentDto dto)
     {
-        if (!dto.StartTime.HasValue || !dto.EndTime.HasValue) return true;
+        if (!dto.StartTime.HasValue || !dto.EndTime.HasValue)
+        {
+            return true;
+        }
 
         var duration = dto.EndTime.Value - dto.StartTime.Value;
 
         // Segment should be at least 0.1 seconds
-        if (duration < 0.1) return false;
+        if (duration < 0.1)
+        {
+            return false;
+        }
 
         // Single segment shouldn't be longer than 5 minutes (300 seconds)
-        if (duration > 300) return false;
+        if (duration > 300)
+        {
+            return false;
+        }
 
         return true;
     }

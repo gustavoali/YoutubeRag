@@ -469,7 +469,7 @@ public class TranscriptionPipelineE2ETests : IntegrationTestBase
         for (int i = 1; i < segments.Count; i++)
         {
             segments[i].StartTime.Should().BeGreaterThanOrEqualTo(segments[i - 1].EndTime,
-                $"Segment {i} StartTime ({segments[i].StartTime}) should be >= Segment {i-1} EndTime ({segments[i-1].EndTime})");
+                $"Segment {i} StartTime ({segments[i].StartTime}) should be >= Segment {i - 1} EndTime ({segments[i - 1].EndTime})");
         }
 
         _output.WriteLine("✓ No timestamp overlaps");

@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using YoutubeRag.Api.Models;
-using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Application.DTOs.Auth;
 using YoutubeRag.Application.Exceptions;
-using System.Security.Claims;
+using YoutubeRag.Application.Interfaces.Services;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -227,5 +227,4 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { error = new { code = "INTERNAL_ERROR", message = ex.Message } });
         }
     }
-
 }

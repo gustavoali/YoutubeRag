@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using YoutubeRag.Api.Models;
-using YoutubeRag.Application.Interfaces.Services;
 using YoutubeRag.Application.DTOs.User;
 using YoutubeRag.Application.Exceptions;
-using System.Security.Claims;
+using YoutubeRag.Application.Interfaces.Services;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -97,8 +97,10 @@ public class UsersController : ControllerBase
     [HttpGet("me/dashboard")]
     public async Task<ActionResult> GetUserDashboard()
     {
-        return Ok(new {
-            user_stats = new {
+        return Ok(new
+        {
+            user_stats = new
+            {
                 total_videos = 25,
                 processing_videos = 2,
                 completed_videos = 21,
@@ -129,7 +131,8 @@ public class UsersController : ControllerBase
                     video_id = "video_2"
                 }
             },
-            usage_analytics = new {
+            usage_analytics = new
+            {
                 searches_this_week = 45,
                 videos_processed_this_month = 12,
                 most_searched_topics = new[] {
@@ -255,7 +258,8 @@ public class UsersController : ControllerBase
             var skip = (page - 1) * pageSize;
             var paginatedActivity = activities.Skip(skip).Take(pageSize).ToArray();
 
-            return Ok(new {
+            return Ok(new
+            {
                 activities = paginatedActivity,  // Changed from 'activity' to 'activities'
                 total = activities.Length,
                 page = page,
@@ -264,8 +268,10 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new {
-                error = new {
+            return StatusCode(500, new
+            {
+                error = new
+                {
                     code = "INTERNAL_ERROR",
                     message = "Failed to retrieve activity history: " + ex.Message
                 }
@@ -293,13 +299,15 @@ public class UsersController : ControllerBase
             var stats = await _userService.GetStatsAsync(userId);
 
             // Transform to match expected format
-            return Ok(new {
+            return Ok(new
+            {
                 total_videos = stats.TotalVideos,
                 processed_videos = stats.CompletedJobs,
                 total_watch_time = 1250, // Mock value in minutes
                 storage_used = stats.TotalStorageBytes,
                 member_since = stats.MemberSince,
-                period = new {
+                period = new
+                {
                     from = fromDate ?? DateTime.UtcNow.AddDays(-30),
                     to = toDate ?? DateTime.UtcNow
                 }
@@ -353,7 +361,8 @@ public class UsersController : ControllerBase
             }
         };
 
-        return Ok(new {
+        return Ok(new
+        {
             searches,
             total = searches.Length,
             page,
@@ -368,28 +377,33 @@ public class UsersController : ControllerBase
     [HttpGet("me/preferences")]
     public async Task<ActionResult> GetUserPreferences()
     {
-        return Ok(new {
-            search_preferences = new {
+        return Ok(new
+        {
+            search_preferences = new
+            {
                 default_search_type = "semantic",
                 max_results = 20,
                 min_relevance_score = 0.7,
                 include_timestamps = true,
                 language_preference = "auto"
             },
-            video_preferences = new {
+            video_preferences = new
+            {
                 auto_process_uploads = true,
                 preferred_quality = "720p",
                 extract_audio = true,
                 generate_embeddings = true,
                 transcription_language = "auto"
             },
-            notification_preferences = new {
+            notification_preferences = new
+            {
                 email_notifications = true,
                 processing_complete = true,
                 weekly_summary = false,
                 search_suggestions = true
             },
-            privacy_settings = new {
+            privacy_settings = new
+            {
                 public_profile = false,
                 share_statistics = false,
                 data_retention_days = 365
@@ -426,7 +440,8 @@ public class UsersController : ControllerBase
             return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Deletion reason is required" } });
         }
 
-        return Ok(new {
+        return Ok(new
+        {
             message = "Account deletion scheduled",
             deletion_date = DateTime.UtcNow.AddDays(30), // 30-day grace period
             reason = request.Reason,
@@ -443,7 +458,8 @@ public class UsersController : ControllerBase
     {
         var exportId = Guid.NewGuid().ToString();
 
-        return Ok(new {
+        return Ok(new
+        {
             export_id = exportId,
             format = request?.Format ?? "json",
             include_videos = request?.IncludeVideos ?? true,
@@ -460,12 +476,15 @@ public class UsersController : ControllerBase
     [HttpGet("me/usage")]
     public async Task<ActionResult> GetApiUsage()
     {
-        return Ok(new {
-            current_period = new {
+        return Ok(new
+        {
+            current_period = new
+            {
                 start_date = DateTime.UtcNow.Date.AddDays(-DateTime.UtcNow.Day + 1),
                 end_date = DateTime.UtcNow.Date.AddDays(-DateTime.UtcNow.Day + 1).AddMonths(1).AddDays(-1)
             },
-            quotas = new {
+            quotas = new
+            {
                 videos_processed = new { used = 23, limit = 100, percentage = 23.0 },
                 searches_performed = new { used = 1567, limit = 5000, percentage = 31.3 },
                 storage_mb = new { used = 2456, limit = 10240, percentage = 24.0 },

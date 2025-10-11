@@ -4,13 +4,13 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+using Xunit.Abstractions;
 using YoutubeRag.Application.DTOs.Video;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Data;
 using YoutubeRag.Tests.Integration.Infrastructure;
-using Xunit;
-using Xunit.Abstractions;
 
 namespace YoutubeRag.Tests.Integration.E2E;
 
@@ -99,8 +99,10 @@ public class VideoIngestionPipelineE2ETests : IntegrationTestBase
             {
                 videoId = videoId.Substring(0, ampIndex);
             }
+
             return videoId;
         }
+
         return string.Empty;
     }
 

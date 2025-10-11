@@ -1,18 +1,18 @@
+using System.Text.Json;
 using FluentAssertions;
+using Hangfire;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using YoutubeRag.Application.DTOs.Transcription;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
-using YoutubeRag.Application.DTOs.Transcription;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Jobs;
 using YoutubeRag.Tests.Integration.Helpers;
 using YoutubeRag.Tests.Integration.Infrastructure;
-using System.Text.Json;
-using Hangfire;
 
 namespace YoutubeRag.Tests.Integration.Jobs;
 

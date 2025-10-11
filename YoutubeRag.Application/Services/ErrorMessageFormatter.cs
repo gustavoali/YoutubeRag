@@ -43,14 +43,17 @@ public static class ErrorMessageFormatter
             {
                 return "Unable to establish a secure connection. This is usually temporary. Retrying automatically...";
             }
+
             if (message.Contains("timeout") || message.Contains("timed out"))
             {
                 return "Connection timed out while downloading video. Retrying automatically...";
             }
+
             if (message.Contains("connection") || message.Contains("network"))
             {
                 return "Network connection issue detected. Retrying automatically...";
             }
+
             return "Unable to download video due to network issues. Retrying automatically...";
         }
 
@@ -91,10 +94,12 @@ public static class ErrorMessageFormatter
             {
                 return "AI transcription model is currently loading. Your video will be processed automatically once the model is ready.";
             }
+
             if (message.Contains("not found") || message.Contains("missing"))
             {
                 return "AI transcription model is being prepared. Your video will be processed shortly.";
             }
+
             return "AI transcription model is temporarily unavailable. Retrying automatically...";
         }
 

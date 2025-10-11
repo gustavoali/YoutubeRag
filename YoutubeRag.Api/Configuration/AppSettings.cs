@@ -13,7 +13,7 @@ public class AppSettings
     public bool EnableRealProcessing { get; set; } = false;
     public bool EnableDocs { get; set; } = true;
     public bool EnableCors { get; set; } = true;
-    
+
     // Hangfire settings
     public bool EnableBackgroundJobs { get; set; } = true;
     public int? MaxConcurrentJobs { get; set; } = 3;

@@ -72,6 +72,7 @@ public class ApplicationDbContext : DbContext
                     {
                         entry.Entity.UpdatedAt = DateTime.UtcNow;
                     }
+
                     break;
 
                 case EntityState.Modified:

@@ -3,12 +3,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Data;
-using YoutubeRag.Tests.Integration.Infrastructure;
 using YoutubeRag.Tests.Integration.Helpers;
-using Xunit;
+using YoutubeRag.Tests.Integration.Infrastructure;
 
 namespace YoutubeRag.Tests.Integration.Controllers;
 

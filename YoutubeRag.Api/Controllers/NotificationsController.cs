@@ -76,6 +76,7 @@ public class NotificationsController : ControllerBase
                     Status = StatusCodes.Status400BadRequest
                 });
             }
+
             notificationType = parsedType;
         }
 

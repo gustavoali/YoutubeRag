@@ -142,6 +142,7 @@ public static class EnvironmentValidator
             {
                 Console.WriteLine($"   {warning}");
             }
+
             Console.WriteLine();
         }
     }
@@ -270,6 +271,7 @@ public static class EnvironmentValidator
         {
             Console.WriteLine($"JWT Issuer:         {jwtIssuer}");
         }
+
         if (!string.IsNullOrWhiteSpace(jwtAudience))
         {
             Console.WriteLine($"JWT Audience:       {jwtAudience}");
@@ -293,7 +295,10 @@ public static class EnvironmentValidator
             {
                 var start = index + pattern.Length;
                 var end = result.IndexOfAny(new[] { ';', '&' }, start);
-                if (end < 0) end = result.Length;
+                if (end < 0)
+                {
+                    end = result.Length;
+                }
 
                 var password = result.Substring(start, end - start);
                 result = result.Replace(password, "****");

@@ -33,7 +33,7 @@ public class CorrelationIdMiddleware
         context.Items["CorrelationId"] = correlationId;
 
         // Add correlation ID to response headers for client tracking
-        context.Response.Headers.Add(CorrelationIdHeader, correlationId);
+        context.Response.Headers.Append(CorrelationIdHeader, correlationId);
 
         // Push correlation ID to Serilog context for all logs in this request
         using (LogContext.PushProperty("CorrelationId", correlationId))

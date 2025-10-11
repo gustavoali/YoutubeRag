@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -36,8 +36,10 @@ public class FilesController : ControllerBase
 
         if (!allowedExtensions.Contains(fileExtension))
         {
-            return BadRequest(new {
-                error = new {
+            return BadRequest(new
+            {
+                error = new
+                {
                     code = "INVALID_FILE_TYPE",
                     message = $"File type '{fileExtension}' not supported. Allowed types: {string.Join(", ", allowedExtensions)}"
                 }
@@ -47,7 +49,8 @@ public class FilesController : ControllerBase
         var fileId = Guid.NewGuid().ToString();
         var uploadPath = $"/uploads/{DateTime.UtcNow:yyyy/MM/dd}/{fileId}{fileExtension}";
 
-        return Ok(new {
+        return Ok(new
+        {
             file_id = fileId,
             original_name = file.FileName,
             title = title ?? Path.GetFileNameWithoutExtension(file.FileName),
@@ -68,7 +71,8 @@ public class FilesController : ControllerBase
     [HttpGet("{fileId}")]
     public async Task<ActionResult> GetFile(string fileId)
     {
-        return Ok(new {
+        return Ok(new
+        {
             id = fileId,
             original_name = "sample_video.mp4",
             title = "Sample Video",
@@ -80,14 +84,16 @@ public class FilesController : ControllerBase
             mime_type = "video/mp4",
             uploaded_at = DateTime.UtcNow.AddHours(-2),
             processed_at = DateTime.UtcNow.AddHours(-1),
-            metadata = new {
+            metadata = new
+            {
                 duration_seconds = 300,
                 resolution = "1920x1080",
                 frame_rate = 30,
                 bitrate = 1500000,
                 codec = "h264"
             },
-            processing_info = new {
+            processing_info = new
+            {
                 video_id = "video_123",
                 job_id = "job_456",
                 transcript_ready = true,
@@ -103,7 +109,8 @@ public class FilesController : ControllerBase
     public async Task<ActionResult> DownloadFile(string fileId, string? version = null)
     {
         // In a real implementation, this would stream the actual file
-        return Ok(new {
+        return Ok(new
+        {
             file_id = fileId,
             download_url = $"https://api.youtuberag.com/files/{fileId}/stream",
             version = version ?? "original",
@@ -158,13 +165,15 @@ public class FilesController : ControllerBase
             }
         };
 
-        return Ok(new {
+        return Ok(new
+        {
             files,
             total = files.Length,
             page,
             page_size = pageSize,
             has_more = false,
-            filters = new {
+            filters = new
+            {
                 file_type = fileType,
                 status,
                 from_date = fromDate,
@@ -179,7 +188,8 @@ public class FilesController : ControllerBase
     [HttpDelete("{fileId}")]
     public async Task<ActionResult> DeleteFile(string fileId, bool deleteAssociatedVideo = false)
     {
-        return Ok(new {
+        return Ok(new
+        {
             file_id = fileId,
             deleted_at = DateTime.UtcNow,
             deleted_associated_video = deleteAssociatedVideo,
@@ -193,14 +203,16 @@ public class FilesController : ControllerBase
     [HttpPost("bulk")]
     public async Task<ActionResult> BulkFileOperation([FromBody] BulkFileRequest request)
     {
-        var results = request.FileIds.Select(fileId => new {
+        var results = request.FileIds.Select(fileId => new
+        {
             file_id = fileId,
             operation = request.Operation,
             status = "success",
             message = $"Operation '{request.Operation}' completed successfully"
         });
 
-        return Ok(new {
+        return Ok(new
+        {
             operation = request.Operation,
             results,
             successful_count = results.Count(),
@@ -214,7 +226,8 @@ public class FilesController : ControllerBase
     [HttpGet("{fileId}/status")]
     public async Task<ActionResult> GetFileProcessingStatus(string fileId)
     {
-        return Ok(new {
+        return Ok(new
+        {
             file_id = fileId,
             status = "processing",
             progress = 65,
@@ -272,23 +285,28 @@ public class FilesController : ControllerBase
     [HttpGet("storage/stats")]
     public async Task<ActionResult> GetStorageStats()
     {
-        return Ok(new {
-            usage = new {
+        return Ok(new
+        {
+            usage = new
+            {
                 total_files = 47,
                 total_size_bytes = 2583291904, // ~2.4GB
                 total_size_gb = 2.4,
-                videos = new {
+                videos = new
+                {
                     count = 32,
                     size_bytes = 2198472192,
                     size_gb = 2.05
                 },
-                audio = new {
+                audio = new
+                {
                     count = 15,
                     size_bytes = 384819712,
                     size_gb = 0.35
                 }
             },
-            quota = new {
+            quota = new
+            {
                 limit_gb = 10,
                 used_percentage = 24.0,
                 remaining_gb = 7.6
@@ -333,7 +351,8 @@ public class FilesController : ControllerBase
     [HttpGet("formats")]
     public async Task<ActionResult> GetSupportedFormats()
     {
-        return Ok(new {
+        return Ok(new
+        {
             video_formats = new[] {
                 new { extension = ".mp4", mime_type = "video/mp4", max_size_mb = 500 },
                 new { extension = ".avi", mime_type = "video/x-msvideo", max_size_mb = 500 },
@@ -346,13 +365,15 @@ public class FilesController : ControllerBase
                 new { extension = ".wav", mime_type = "audio/wav", max_size_mb = 100 },
                 new { extension = ".m4a", mime_type = "audio/mp4", max_size_mb = 100 }
             },
-            global_limits = new {
+            global_limits = new
+            {
                 max_files_per_user = 1000,
                 max_storage_gb = 10,
                 max_upload_size_mb = 500,
                 concurrent_uploads = 3
             },
-            processing_capabilities = new {
+            processing_capabilities = new
+            {
                 video_transcription = true,
                 audio_extraction = true,
                 embedding_generation = true,

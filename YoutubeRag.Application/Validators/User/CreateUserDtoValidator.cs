@@ -62,7 +62,10 @@ public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
     /// </summary>
     private bool BeValidEmailDomain(string email)
     {
-        if (string.IsNullOrEmpty(email)) return false;
+        if (string.IsNullOrEmpty(email))
+        {
+            return false;
+        }
 
         // List of common disposable email domains to block
         var disposableDomains = new[]
@@ -80,7 +83,10 @@ public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
     /// </summary>
     private bool NotContainCommonPatterns(string password)
     {
-        if (string.IsNullOrEmpty(password)) return false;
+        if (string.IsNullOrEmpty(password))
+        {
+            return false;
+        }
 
         var commonPatterns = new[]
         {
@@ -97,7 +103,10 @@ public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
     /// </summary>
     private bool BeValidUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url)) return true;
+        if (string.IsNullOrEmpty(url))
+        {
+            return true;
+        }
 
         return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
                (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);

@@ -50,14 +50,24 @@ public class ModelStateValidationFilter : IActionFilter
     /// </summary>
     private string ToCamelCase(string str)
     {
-        if (string.IsNullOrEmpty(str)) return str;
-        if (str.Length == 1) return str.ToLowerInvariant();
+        if (string.IsNullOrEmpty(str))
+        {
+            return str;
+        }
+
+        if (str.Length == 1)
+        {
+            return str.ToLowerInvariant();
+        }
 
         // Handle nested property names (e.g., "Address.Street" -> "address.street")
         var parts = str.Split('.');
         return string.Join(".", parts.Select(part =>
         {
-            if (string.IsNullOrEmpty(part)) return part;
+            if (string.IsNullOrEmpty(part))
+            {
+                return part;
+            }
 
             // Handle array indexers (e.g., "Items[0]" -> "items[0]")
             var indexerStart = part.IndexOf('[');

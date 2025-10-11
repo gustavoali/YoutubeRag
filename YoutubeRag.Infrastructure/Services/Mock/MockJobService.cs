@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
-using Microsoft.Extensions.Logging;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -57,22 +57,32 @@ public class MockJobService : IJobService
 
         var job = _mockJobs.FirstOrDefault(j => j.Id == jobId);
         if (job == null)
+        {
             throw new ArgumentException($"Job not found: {jobId}");
+        }
 
         job.Status = status;
         job.UpdatedAt = DateTime.UtcNow;
 
         if (statusMessage != null)
+        {
             job.StatusMessage = statusMessage;
+        }
 
         if (progress.HasValue)
+        {
             job.Progress = Math.Clamp(progress.Value, 0, 100);
+        }
 
         if (status == JobStatus.Running && job.StartedAt == null)
+        {
             job.StartedAt = DateTime.UtcNow;
+        }
 
         if (status == JobStatus.Completed || status == JobStatus.Failed)
+        {
             job.CompletedAt = DateTime.UtcNow;
+        }
 
         return job;
     }
@@ -116,7 +126,9 @@ public class MockJobService : IJobService
 
         var job = _mockJobs.FirstOrDefault(j => j.Id == jobId);
         if (job == null)
+        {
             return false;
+        }
 
         if (job.Status == JobStatus.Pending || job.Status == JobStatus.Running)
         {
@@ -137,7 +149,9 @@ public class MockJobService : IJobService
         {
             var job = await GetJobAsync(jobId);
             if (job == null)
+            {
                 throw new ArgumentException($"Job not found: {jobId}");
+            }
 
             await UpdateJobStatusAsync(jobId, JobStatus.Running, "Mock job execution started");
 

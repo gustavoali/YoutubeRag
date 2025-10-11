@@ -80,7 +80,9 @@ public class UserNotification : BaseEntity
         get
         {
             if (string.IsNullOrEmpty(MetadataJson))
+            {
                 return null;
+            }
 
             try
             {

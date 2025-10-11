@@ -1,6 +1,6 @@
+using System.Text.Json;
 using FluentValidation;
 using YoutubeRag.Application.DTOs.Video;
-using System.Text.Json;
 
 namespace YoutubeRag.Application.Validators.Video;
 
@@ -67,7 +67,10 @@ public class CreateVideoDtoValidator : AbstractValidator<CreateVideoDto>
     /// </summary>
     private bool BeValidYoutubeUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url)) return false;
+        if (string.IsNullOrEmpty(url))
+        {
+            return false;
+        }
 
         try
         {
@@ -76,7 +79,9 @@ public class CreateVideoDtoValidator : AbstractValidator<CreateVideoDto>
 
             // Check for valid YouTube domains
             if (!host.Contains("youtube.com") && !host.Contains("youtu.be") && !host.Contains("youtube-nocookie.com"))
+            {
                 return false;
+            }
 
             // For youtube.com, check for video ID in query string
             if (host.Contains("youtube.com"))
@@ -104,7 +109,10 @@ public class CreateVideoDtoValidator : AbstractValidator<CreateVideoDto>
     /// </summary>
     private bool BeValidUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url)) return true;
+        if (string.IsNullOrEmpty(url))
+        {
+            return true;
+        }
 
         return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
                (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
@@ -115,7 +123,10 @@ public class CreateVideoDtoValidator : AbstractValidator<CreateVideoDto>
     /// </summary>
     private bool BeValidImageUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url)) return true;
+        if (string.IsNullOrEmpty(url))
+        {
+            return true;
+        }
 
         var validExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp" };
         var urlLower = url.ToLowerInvariant();
@@ -134,7 +145,10 @@ public class CreateVideoDtoValidator : AbstractValidator<CreateVideoDto>
     /// </summary>
     private bool BeValidJson(string? json)
     {
-        if (string.IsNullOrEmpty(json)) return true;
+        if (string.IsNullOrEmpty(json))
+        {
+            return true;
+        }
 
         try
         {

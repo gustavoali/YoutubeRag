@@ -78,10 +78,14 @@ public class VideoMappingProfile : Profile
     private static string? TruncateText(string? text, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(text))
+        {
             return text;
+        }
 
         if (text.Length <= maxLength)
+        {
             return text;
+        }
 
         return text.Substring(0, maxLength - 3) + "...";
     }

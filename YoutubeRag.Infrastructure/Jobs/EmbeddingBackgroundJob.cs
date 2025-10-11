@@ -1,8 +1,8 @@
+using Hangfire;
 using Microsoft.Extensions.Logging;
-using YoutubeRag.Infrastructure.Services;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Enums;
-using Hangfire;
+using YoutubeRag.Infrastructure.Services;
 
 namespace YoutubeRag.Infrastructure.Jobs;
 
@@ -62,7 +62,9 @@ public class EmbeddingBackgroundJob
     private async Task UpdateJobHangfireId(string videoId, string hangfireJobId, JobType jobType, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(hangfireJobId))
+        {
             return;
+        }
 
         try
         {

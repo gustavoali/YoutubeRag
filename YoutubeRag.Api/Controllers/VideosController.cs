@@ -1,17 +1,17 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using YoutubeRag.Domain.Enums;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using YoutubeRag.Api.Configuration;
+using YoutubeRag.Application.DTOs.Progress;
+using YoutubeRag.Application.DTOs.Video;
+using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
-using YoutubeRag.Application.DTOs.Video;
-using YoutubeRag.Application.DTOs.Progress;
-using YoutubeRag.Application.Exceptions;
-using YoutubeRag.Api.Configuration;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Caching.Memory;
-using System.Security.Claims;
-using System.Diagnostics;
-using Microsoft.EntityFrameworkCore;
+using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -66,7 +66,8 @@ public class VideosController : ControllerBase
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _videoService.GetAllAsync(page, pageSize, userId);
 
-            return Ok(new {
+            return Ok(new
+            {
                 videos = result.Items,
                 total = result.TotalCount,
                 page = result.PageNumber,
@@ -95,7 +96,8 @@ public class VideosController : ControllerBase
         // Mock video processing
         var videoId = Guid.NewGuid().ToString();
 
-        return Ok(new {
+        return Ok(new
+        {
             id = videoId,
             title = title ?? file.FileName,
             description,
@@ -126,7 +128,8 @@ public class VideosController : ControllerBase
                 request.Description,
                 userId);
 
-            return Ok(new {
+            return Ok(new
+            {
                 id = video.Id,
                 title = video.Title,
                 description = video.Description,
@@ -143,8 +146,10 @@ public class VideosController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new {
-                error = new {
+            return BadRequest(new
+            {
+                error = new
+                {
                     code = "PROCESSING_ERROR",
                     message = ex.Message
                 }
@@ -393,7 +398,8 @@ public class VideosController : ControllerBase
         try
         {
             var video = await _videoService.UpdateAsync(videoId, updateDto);
-            return Ok(new {
+            return Ok(new
+            {
                 id = video.Id,
                 message = "Video updated successfully",
                 video
@@ -458,7 +464,8 @@ public class VideosController : ControllerBase
     [HttpPost("{videoId}/reprocess")]
     public async Task<ActionResult> ReprocessVideo(string videoId, [FromBody] ProcessingConfigRequest config)
     {
-        return Ok(new {
+        return Ok(new
+        {
             video_id = videoId,
             job_id = Guid.NewGuid().ToString(),
             message = "Video reprocessing started",
@@ -490,7 +497,8 @@ public class VideosController : ControllerBase
             }
         };
 
-        return Ok(new {
+        return Ok(new
+        {
             video_id = videoId,
             segments,
             total_segments = segments.Length
@@ -503,7 +511,8 @@ public class VideosController : ControllerBase
     [HttpGet("transcript-test/{youtubeId}")]
     public async Task<ActionResult> GetTranscriptByYoutubeId(string youtubeId)
     {
-        return Ok(new {
+        return Ok(new
+        {
             youtube_id = youtubeId,
             transcript = "Mock transcript for YouTube video",
             source = "youtube-api"
@@ -516,9 +525,11 @@ public class VideosController : ControllerBase
     [HttpGet("debug/progress-test")]
     public async Task<ActionResult> DebugProgressTest()
     {
-        return Ok(new {
+        return Ok(new
+        {
             message = "Debug endpoint working",
-            sample_progress = new {
+            sample_progress = new
+            {
                 status = "processing",
                 progress = 65,
                 current_stage = "transcription"

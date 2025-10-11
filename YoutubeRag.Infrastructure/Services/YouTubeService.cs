@@ -1,9 +1,9 @@
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using YoutubeExplode;
 using YoutubeExplode.Videos;
 using YoutubeExplode.Videos.Streams;
 using YoutubeRag.Application.Interfaces;
-using Microsoft.Extensions.Logging;
-using System.Text.RegularExpressions;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -69,7 +69,9 @@ public class YouTubeService : IYouTubeService
             }
 
             if (videoStreamInfo == null)
+            {
                 throw new InvalidOperationException("No suitable video stream found");
+            }
 
             var fileName = $"{videoId}.{videoStreamInfo.Container.Name}";
             var fullPath = Path.Combine(outputPath, fileName);
@@ -99,7 +101,9 @@ public class YouTubeService : IYouTubeService
                 .GetWithHighestBitrate();
 
             if (audioStreamInfo == null)
+            {
                 throw new InvalidOperationException("No suitable audio stream found");
+            }
 
             var fileName = $"{videoId}_audio.{audioStreamInfo.Container.Name}";
             var fullPath = Path.Combine(outputPath, fileName);
@@ -123,7 +127,9 @@ public class YouTubeService : IYouTubeService
         {
             var videoId = ExtractVideoIdFromUrl(url);
             if (string.IsNullOrEmpty(videoId))
+            {
                 return false;
+            }
 
             await _youtube.Videos.GetAsync(videoId);
             return true;
@@ -147,7 +153,9 @@ public class YouTubeService : IYouTubeService
         {
             var match = Regex.Match(url, pattern);
             if (match.Success)
+            {
                 return match.Groups[1].Value;
+            }
         }
 
         throw new ArgumentException($"Invalid YouTube URL: {url}");

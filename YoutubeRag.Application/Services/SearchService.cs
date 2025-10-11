@@ -44,17 +44,26 @@ public class SearchService : ISearchService
 
         foreach (var segment in allSegments)
         {
-            if (string.IsNullOrEmpty(segment.EmbeddingVector)) continue;
+            if (string.IsNullOrEmpty(segment.EmbeddingVector))
+            {
+                continue;
+            }
 
             var segmentEmbedding = DeserializeEmbedding(segment.EmbeddingVector);
-            if (segmentEmbedding == null) continue;
+            if (segmentEmbedding == null)
+            {
+                continue;
+            }
 
             var similarity = CalculateCosineSimilarity(queryEmbedding, segmentEmbedding);
 
             if (similarity >= (searchDto.MinScore ?? 0.0))
             {
                 var video = await _unitOfWork.Videos.GetByIdAsync(segment.VideoId);
-                if (video == null) continue;
+                if (video == null)
+                {
+                    continue;
+                }
 
                 results.Add(new SearchResultDto(
                     VideoId: video.Id,
@@ -111,10 +120,16 @@ public class SearchService : ISearchService
 
         foreach (var segment in segments)
         {
-            if (string.IsNullOrEmpty(segment.EmbeddingVector)) continue;
+            if (string.IsNullOrEmpty(segment.EmbeddingVector))
+            {
+                continue;
+            }
 
             var segmentEmbedding = DeserializeEmbedding(segment.EmbeddingVector);
-            if (segmentEmbedding == null) continue;
+            if (segmentEmbedding == null)
+            {
+                continue;
+            }
 
             var similarity = CalculateCosineSimilarity(queryEmbedding, segmentEmbedding);
 
@@ -201,10 +216,16 @@ public class SearchService : ISearchService
                 .Cast<double[]>()
                 .ToList();
 
-            if (!otherEmbeddings.Any()) continue;
+            if (!otherEmbeddings.Any())
+            {
+                continue;
+            }
 
             var otherAvgEmbedding = CalculateAverageEmbedding(otherEmbeddings);
-            if (otherAvgEmbedding == null) continue;
+            if (otherAvgEmbedding == null)
+            {
+                continue;
+            }
 
             var similarity = CalculateCosineSimilarity(avgEmbedding, otherAvgEmbedding);
             similarVideos.Add((otherVideo.Id, similarity));
@@ -316,7 +337,10 @@ public class SearchService : ISearchService
 
     private double[]? CalculateAverageEmbedding(List<double[]> embeddings)
     {
-        if (!embeddings.Any()) return null;
+        if (!embeddings.Any())
+        {
+            return null;
+        }
 
         var dimension = embeddings[0].Length;
         var avgEmbedding = new double[dimension];

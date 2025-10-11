@@ -1,8 +1,10 @@
+using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using System.Text.Json;
+using Polly;
+using Polly.Retry;
 using YoutubeExplode;
 using YoutubeExplode.Common;
 using YoutubeExplode.Exceptions;
@@ -10,8 +12,6 @@ using YoutubeRag.Application.DTOs.Video;
 using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Infrastructure.Resilience;
-using Polly;
-using Polly.Retry;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -324,6 +324,7 @@ public class MetadataExtractionService : IMetadataExtractionService
                         _logger.LogInformation("Found yt-dlp executable at: {Path}", path);
                         return path;
                     }
+
                     continue;
                 }
 
@@ -417,6 +418,7 @@ public class MetadataExtractionService : IMetadataExtractionService
                     process.Kill();
                     await process.WaitForExitAsync();
                 }
+
                 throw new TimeoutException($"yt-dlp metadata extraction timed out after {timeout.TotalSeconds} seconds for video {youTubeId}");
             }
 

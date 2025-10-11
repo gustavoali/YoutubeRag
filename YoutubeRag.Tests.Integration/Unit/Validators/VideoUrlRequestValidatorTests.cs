@@ -1,6 +1,6 @@
-using Xunit;
 using FluentAssertions;
 using FluentValidation.TestHelper;
+using Xunit;
 using YoutubeRag.Application.DTOs.Video;
 using YoutubeRag.Application.Validators.Video;
 

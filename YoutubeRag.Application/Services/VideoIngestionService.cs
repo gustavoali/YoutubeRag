@@ -1,13 +1,13 @@
+using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
+using YoutubeRag.Application.Configuration;
 using YoutubeRag.Application.DTOs.Video;
+using YoutubeRag.Application.Exceptions;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
-using YoutubeRag.Application.Exceptions;
-using YoutubeRag.Application.Configuration;
 using YoutubeRag.Application.Utilities;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
-using Microsoft.Extensions.Logging;
-using System.Text.RegularExpressions;
 
 namespace YoutubeRag.Application.Services;
 
@@ -218,16 +218,22 @@ public class VideoIngestionService : IVideoIngestionService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(url))
+        {
             return (false, null, "URL cannot be empty");
+        }
 
         // Extract YouTube ID
         var youTubeId = ExtractYouTubeId(url);
         if (string.IsNullOrEmpty(youTubeId))
+        {
             return (false, null, "Could not extract YouTube video ID from URL");
+        }
 
         // Validate ID format (11 characters, alphanumeric + - and _)
         if (youTubeId.Length != 11)
+        {
             return (false, null, "Invalid YouTube video ID format");
+        }
 
         // Check if video is accessible using metadata extraction service
         // Note: This is a soft check - we log warnings but don't reject the video

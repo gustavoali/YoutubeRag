@@ -125,6 +125,7 @@ public class UserService : IUserService
             {
                 throw new BusinessValidationException("Email", $"Email '{updateDto.Email}' is already in use");
             }
+
             user.Email = updateDto.Email;
         }
 

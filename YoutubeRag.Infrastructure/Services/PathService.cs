@@ -61,7 +61,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string GetTempPath()
         {
             if (_tempPath != null)
+            {
                 return _tempPath;
+            }
 
             _tempPath = ResolvePath(
                 environmentVariableName: "PROCESSING_TEMP_PATH",
@@ -78,7 +80,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string GetModelsPath()
         {
             if (_modelsPath != null)
+            {
                 return _modelsPath;
+            }
 
             _modelsPath = ResolvePath(
                 environmentVariableName: "WHISPER_MODELS_PATH",
@@ -95,7 +99,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string GetUploadsPath()
         {
             if (_uploadsPath != null)
+            {
                 return _uploadsPath;
+            }
 
             _uploadsPath = ResolvePath(
                 environmentVariableName: "UPLOAD_PATH",
@@ -112,7 +118,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string GetLogsPath()
         {
             if (_logsPath != null)
+            {
                 return _logsPath;
+            }
 
             // Logs are always relative to application directory
             _logsPath = Path.Combine(AppContext.BaseDirectory, "logs");
@@ -126,7 +134,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string CombinePath(params string[] paths)
         {
             if (paths == null || paths.Length == 0)
+            {
                 throw new ArgumentException("At least one path must be provided", nameof(paths));
+            }
 
             var combined = Path.Combine(paths);
             return NormalizePath(combined);
@@ -136,7 +146,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string NormalizePath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
+            {
                 throw new ArgumentException("Path cannot be null or whitespace", nameof(path));
+            }
 
             // Replace wrong separators with correct ones
             var normalized = path.Replace('\\', Path.DirectorySeparatorChar)
@@ -167,7 +179,9 @@ namespace YoutubeRag.Infrastructure.Services
         public string EnsureDirectoryExists(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
+            {
                 throw new ArgumentException("Path cannot be null or whitespace", nameof(path));
+            }
 
             var normalizedPath = NormalizePath(path);
 
@@ -192,11 +206,15 @@ namespace YoutubeRag.Infrastructure.Services
         public string GetTempFilePath(string extension)
         {
             if (string.IsNullOrWhiteSpace(extension))
+            {
                 throw new ArgumentException("Extension cannot be null or whitespace", nameof(extension));
+            }
 
             // Ensure extension has leading dot
             if (!extension.StartsWith("."))
+            {
                 extension = "." + extension;
+            }
 
             var tempDir = GetTempPath();
             var fileName = $"{Guid.NewGuid():N}{extension}";

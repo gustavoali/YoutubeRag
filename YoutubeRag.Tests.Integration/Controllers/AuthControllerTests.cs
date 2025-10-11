@@ -4,11 +4,11 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 using YoutubeRag.Api.Models;
 using YoutubeRag.Application.Interfaces.Services;
-using YoutubeRag.Tests.Integration.Infrastructure;
 using YoutubeRag.Tests.Integration.Helpers;
-using Xunit;
+using YoutubeRag.Tests.Integration.Infrastructure;
 
 namespace YoutubeRag.Tests.Integration.Controllers;
 

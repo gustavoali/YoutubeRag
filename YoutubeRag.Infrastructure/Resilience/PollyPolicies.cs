@@ -1,7 +1,7 @@
+using System.Net;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
-using System.Net;
 
 namespace YoutubeRag.Infrastructure.Resilience;
 
@@ -195,5 +195,4 @@ public static class PollyPolicies
                     return Task.CompletedTask;
                 });
     }
-
 }

@@ -1,10 +1,10 @@
+using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http.Headers;
-using YoutubeRag.Application.Interfaces.Services;
-using YoutubeRag.Application.DTOs.Auth;
-using YoutubeRag.Infrastructure.Data;
 using Xunit;
+using YoutubeRag.Application.DTOs.Auth;
+using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Infrastructure.Data;
 
 namespace YoutubeRag.Tests.Integration.Infrastructure;
 

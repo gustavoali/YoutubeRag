@@ -102,6 +102,7 @@ Creates:
 
 ### Development
 - **[DevOps Implementation Plan](docs/devops/DEVOPS_IMPLEMENTATION_PLAN.md)** - Complete DevOps roadmap
+- **[Pre-Commit Hooks Guide](docs/PRE_COMMIT_HOOKS.md)** - Automated code quality checks
 - **[CI/CD Pipeline Guide](GITHUB_CI_LESSONS_LEARNED.md)** - Troubleshooting CI/CD issues
 - **[Test Suite Documentation](TEST_RESULTS_REPORT.md)** - 422 tests, 99.3% pass rate
 
@@ -243,6 +244,29 @@ dotnet test --filter "Category=Integration"
 
 # Current stats: 422/425 tests passing (99.3%)
 ```
+
+### Code Quality & Pre-Commit Hooks
+
+This project uses **Husky.NET** for automated code quality checks:
+
+```bash
+# Hooks run automatically on commit/push
+git commit -m "Your changes"
+# ✅ Code formatting check... PASSED
+# ✅ Build verification... PASSED
+
+# Fix formatting issues
+dotnet format
+
+# See full documentation
+# docs/PRE_COMMIT_HOOKS.md
+```
+
+**Automatic checks:**
+- **Pre-commit:** Code formatting + Build verification
+- **Pre-push:** Unit tests (422 tests)
+
+Hooks are installed automatically by `dev-setup` scripts.
 
 ### Database Migrations
 

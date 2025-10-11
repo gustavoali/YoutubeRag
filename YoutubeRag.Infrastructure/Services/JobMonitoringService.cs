@@ -1,9 +1,9 @@
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Data;
-using Hangfire;
 
 namespace YoutubeRag.Infrastructure.Services;
 

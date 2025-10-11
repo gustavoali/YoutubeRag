@@ -236,8 +236,34 @@ fi
 
 echo ""
 
+# Step 6.5: Install Git Hooks
+log_info "Step 6.5/9: Installing Git hooks (Husky.NET)..."
+echo ""
+
+# Restore .NET local tools (including Husky)
+if log_info "  Restoring .NET tools..." && \
+   dotnet tool restore --verbosity quiet 2>/dev/null; then
+    log_success "  ✓ .NET tools restored"
+
+    # Install Git hooks
+    log_info "  Installing pre-commit hooks..."
+    if dotnet husky install 2>/dev/null; then
+        log_success "  ✓ Git hooks installed"
+        log_info "  → Pre-commit: Code formatting + Build check"
+        log_info "  → Pre-push: Unit tests"
+    else
+        log_warning "  ⚠ Git hooks installation skipped (non-critical)"
+        log_info "  You can install manually later with: dotnet husky install"
+    fi
+else
+    log_warning "  ⚠ Git hooks installation skipped (non-critical)"
+    log_info "  You can install manually later with: dotnet husky install"
+fi
+
+echo ""
+
 # Step 7: Build Solution
-log_info "Step 7/8: Building solution..."
+log_info "Step 7/9: Building solution..."
 echo ""
 
 if dotnet build YoutubeRag.sln --configuration Release --no-restore --verbosity quiet; then
@@ -250,7 +276,7 @@ fi
 echo ""
 
 # Step 8: Database Migrations
-log_info "Step 8/8: Running database migrations..."
+log_info "Step 8/9: Running database migrations..."
 echo ""
 
 # Check if EF Core tools are installed
@@ -310,6 +336,7 @@ log_success "✓ All prerequisites verified"
 log_success "✓ Environment configured"
 log_success "✓ Docker services running"
 log_success "✓ Dependencies restored"
+log_success "✓ Git hooks installed (pre-commit + pre-push)"
 log_success "✓ Solution built"
 log_success "✓ Database initialized"
 echo ""

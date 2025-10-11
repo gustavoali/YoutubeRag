@@ -63,7 +63,6 @@ public class UnitOfWork : IUnitOfWork
     /// <inheritdoc />
     public bool HasActiveTransaction => _currentTransaction != null;
 
-
     /// <inheritdoc />
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -64,7 +64,11 @@ public class PaginationRequestDtoValidator : AbstractValidator<PaginationRequest
     /// </summary>
     private bool BeValidSortField(string? sortBy)
     {
-        if (string.IsNullOrEmpty(sortBy)) return true;
+        if (string.IsNullOrEmpty(sortBy))
+        {
+            return true;
+        }
+
         return _validSortFields.Contains(sortBy.ToLowerInvariant());
     }
 
@@ -73,7 +77,10 @@ public class PaginationRequestDtoValidator : AbstractValidator<PaginationRequest
     /// </summary>
     private bool NotContainDangerousCharacters(string? query)
     {
-        if (string.IsNullOrEmpty(query)) return true;
+        if (string.IsNullOrEmpty(query))
+        {
+            return true;
+        }
 
         // Check for common SQL injection patterns
         var dangerousPatterns = new[]

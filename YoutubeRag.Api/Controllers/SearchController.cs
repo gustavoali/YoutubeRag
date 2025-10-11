@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using YoutubeRag.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using YoutubeRag.Api.Configuration;
 using YoutubeRag.Application.DTOs.Search;
 using YoutubeRag.Application.Exceptions;
-using YoutubeRag.Api.Configuration;
-using Microsoft.Extensions.Options;
+using YoutubeRag.Application.Interfaces.Services;
 
 namespace YoutubeRag.Api.Controllers;
 
@@ -56,7 +56,8 @@ public class SearchController : ControllerBase
 
             var processingTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
-            return Ok(new {
+            return Ok(new
+            {
                 query = searchResults.Query,
                 results = searchResults.Results,
                 total_results = searchResults.TotalResults,
@@ -69,8 +70,10 @@ public class SearchController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new {
-                error = new {
+            return BadRequest(new
+            {
+                error = new
+                {
                     code = "SEARCH_ERROR",
                     message = ex.Message
                 }
@@ -106,7 +109,8 @@ public class SearchController : ControllerBase
             }
         };
 
-        return Ok(new {
+        return Ok(new
+        {
             keywords = request.Keywords,
             results,
             total_videos = results.Length,
@@ -139,7 +143,8 @@ public class SearchController : ControllerBase
             }
         };
 
-        return Ok(new {
+        return Ok(new
+        {
             query = request.Query,
             filters = request.Filters,
             results,
@@ -172,7 +177,8 @@ public class SearchController : ControllerBase
         {
             var suggestions = await _searchService.GetSearchSuggestionsAsync(searchQuery, limit);
 
-            return Ok(new {
+            return Ok(new
+            {
                 query = searchQuery,
                 suggestions,
                 count = suggestions.Count
@@ -198,7 +204,8 @@ public class SearchController : ControllerBase
             new { term = "python programming", count = 143 }
         }.Take(limit);
 
-        return Ok(new {
+        return Ok(new
+        {
             trending_searches = trending,
             period = "last_7_days",
             total_searches = trending.Sum(t => t.count)
@@ -262,7 +269,8 @@ public class SearchController : ControllerBase
             var skip = (page - 1) * pageSize;
             var paginatedHistory = searchHistory.Skip(skip).Take(pageSize).ToArray();
 
-            return Ok(new {
+            return Ok(new
+            {
                 history = paginatedHistory,
                 total = searchHistory.Length,
                 page = page,
@@ -271,8 +279,10 @@ public class SearchController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new {
-                error = new {
+            return StatusCode(500, new
+            {
+                error = new
+                {
                     code = "INTERNAL_ERROR",
                     message = "Failed to retrieve search history: " + ex.Message
                 }

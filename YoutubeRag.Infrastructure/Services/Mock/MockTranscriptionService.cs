@@ -1,7 +1,7 @@
-using YoutubeRag.Application.Interfaces;
-using YoutubeRag.Application.DTOs.Transcription;
-using YoutubeRag.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using YoutubeRag.Application.DTOs.Transcription;
+using YoutubeRag.Application.Interfaces;
+using YoutubeRag.Domain.Entities;
 
 namespace YoutubeRag.Infrastructure.Services;
 

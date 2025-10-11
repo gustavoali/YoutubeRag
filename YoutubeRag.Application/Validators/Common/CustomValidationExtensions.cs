@@ -1,6 +1,6 @@
-using FluentValidation;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using FluentValidation;
 
 namespace YoutubeRag.Application.Validators.Common;
 
@@ -38,7 +38,11 @@ public static class CustomValidationExtensions
         return ruleBuilder
             .Must(value =>
             {
-                if (string.IsNullOrEmpty(value)) return true;
+                if (string.IsNullOrEmpty(value))
+                {
+                    return true;
+                }
+
                 try
                 {
                     using var doc = JsonDocument.Parse(value);
@@ -60,7 +64,11 @@ public static class CustomValidationExtensions
         return ruleBuilder
             .Must(value =>
             {
-                if (string.IsNullOrEmpty(value)) return true;
+                if (string.IsNullOrEmpty(value))
+                {
+                    return true;
+                }
+
                 return Uri.TryCreate(value, UriKind.Absolute, out var result) &&
                        (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
             })
@@ -78,7 +86,11 @@ public static class CustomValidationExtensions
             .EmailAddress().WithMessage("{PropertyName} must be a valid email address")
             .Must(email =>
             {
-                if (string.IsNullOrEmpty(email) || blockedDomains.Length == 0) return true;
+                if (string.IsNullOrEmpty(email) || blockedDomains.Length == 0)
+                {
+                    return true;
+                }
+
                 var domain = email.Split('@').LastOrDefault()?.ToLowerInvariant();
                 return !string.IsNullOrEmpty(domain) && !blockedDomains.Contains(domain);
             })
@@ -93,20 +105,30 @@ public static class CustomValidationExtensions
         return ruleBuilder
             .Must(value =>
             {
-                if (string.IsNullOrEmpty(value)) return true;
+                if (string.IsNullOrEmpty(value))
+                {
+                    return true;
+                }
+
                 try
                 {
                     var uri = new Uri(value);
                     var host = uri.Host.ToLowerInvariant();
 
                     if (!host.Contains("youtube.com") && !host.Contains("youtu.be") && !host.Contains("youtube-nocookie.com"))
+                    {
                         return false;
+                    }
 
                     if (host.Contains("youtube.com"))
+                    {
                         return uri.Query.Contains("v=") || uri.AbsolutePath.Contains("/embed/") || uri.AbsolutePath.Contains("/v/");
+                    }
 
                     if (host.Contains("youtu.be"))
+                    {
                         return !string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath.Length > 1;
+                    }
 
                     return true;
                 }
@@ -136,7 +158,11 @@ public static class CustomValidationExtensions
         return ruleBuilder
             .Must(value =>
             {
-                if (string.IsNullOrEmpty(value)) return true;
+                if (string.IsNullOrEmpty(value))
+                {
+                    return true;
+                }
+
                 return !Regex.IsMatch(value, @"<[^>]+>");
             })
             .WithMessage("{PropertyName} cannot contain HTML tags");
@@ -165,7 +191,11 @@ public static class CustomValidationExtensions
         return ruleBuilder
             .Must(value =>
             {
-                if (string.IsNullOrEmpty(value)) return true;
+                if (string.IsNullOrEmpty(value))
+                {
+                    return true;
+                }
+
                 try
                 {
                     Convert.FromBase64String(value);
@@ -211,7 +241,11 @@ public static class CustomValidationExtensions
         return ruleBuilder
             .Must(value =>
             {
-                if (string.IsNullOrEmpty(value)) return true;
+                if (string.IsNullOrEmpty(value))
+                {
+                    return true;
+                }
+
                 return DateTime.TryParseExact(value, format, null,
                     System.Globalization.DateTimeStyles.None, out _);
             })
@@ -251,6 +285,7 @@ public static class CustomValidationExtensions
             order++;
             len = len / 1024;
         }
+
         return $"{len:0.##} {sizes[order]}";
     }
 }

@@ -1,9 +1,9 @@
+using Hangfire;
 using Microsoft.Extensions.Logging;
-using YoutubeRag.Application.Services;
 using YoutubeRag.Application.Configuration;
 using YoutubeRag.Application.Interfaces.Services;
+using YoutubeRag.Application.Services;
 using YoutubeRag.Infrastructure.Services;
-using Hangfire;
 
 namespace YoutubeRag.Infrastructure.Jobs;
 

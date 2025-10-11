@@ -1,7 +1,7 @@
-using FluentValidation;
-using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text.Json;
+using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 
 namespace YoutubeRag.Api.Middleware;
 
@@ -235,13 +235,24 @@ public class GlobalExceptionHandlerMiddleware
     /// </summary>
     private string ToCamelCase(string str)
     {
-        if (string.IsNullOrEmpty(str)) return str;
-        if (str.Length == 1) return str.ToLowerInvariant();
+        if (string.IsNullOrEmpty(str))
+        {
+            return str;
+        }
+
+        if (str.Length == 1)
+        {
+            return str.ToLowerInvariant();
+        }
 
         var parts = str.Split('.');
         return string.Join(".", parts.Select(part =>
         {
-            if (string.IsNullOrEmpty(part)) return part;
+            if (string.IsNullOrEmpty(part))
+            {
+                return part;
+            }
+
             return char.ToLowerInvariant(part[0]) + part.Substring(1);
         }));
     }

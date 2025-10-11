@@ -1,18 +1,18 @@
+using System.Text.Json;
 using FluentAssertions;
+using Hangfire;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using YoutubeRag.Application.DTOs.Transcription;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Application.Interfaces.Services;
-using YoutubeRag.Application.DTOs.Transcription;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Jobs;
 using YoutubeRag.Tests.Integration.Helpers;
 using YoutubeRag.Tests.Integration.Infrastructure;
-using System.Text.Json;
-using Hangfire;
 
 namespace YoutubeRag.Tests.Integration.Jobs;
 
@@ -416,11 +416,11 @@ public class MultiStagePipelineTests : IntegrationTestBase
     }
 
     [Theory]
-    [InlineData(PipelineStage.Download, 100, 20)]           // Download: 20% weight
-    [InlineData(PipelineStage.AudioExtraction, 100, 35)]    // Download (20%) + Audio (15%) = 35%
-    [InlineData(PipelineStage.Transcription, 100, 85)]      // Download (20%) + Audio (15%) + Transcription (50%) = 85%
-    [InlineData(PipelineStage.Segmentation, 100, 100)]      // All stages complete = 100%
-    public async Task Pipeline_CalculatesWeightedProgress_ForEachStage(PipelineStage stage, double stageProgress, int expectedOverallProgress)
+    [InlineData(PipelineStage.Download, 20)]           // Download: 20% weight
+    [InlineData(PipelineStage.AudioExtraction, 35)]    // Download (20%) + Audio (15%) = 35%
+    [InlineData(PipelineStage.Transcription, 85)]      // Download (20%) + Audio (15%) + Transcription (50%) = 85%
+    [InlineData(PipelineStage.Segmentation, 100)]      // All stages complete = 100%
+    public async Task Pipeline_CalculatesWeightedProgress_ForEachStage(PipelineStage stage, int expectedOverallProgress)
     {
         // Arrange
         await AuthenticateAsync();
@@ -442,13 +442,24 @@ public class MultiStagePipelineTests : IntegrationTestBase
 
         // Set progress for all stages up to and including current stage
         if (stage >= PipelineStage.Download)
+        {
             job.SetStageProgress(PipelineStage.Download, 100);
+        }
+
         if (stage >= PipelineStage.AudioExtraction)
+        {
             job.SetStageProgress(PipelineStage.AudioExtraction, 100);
+        }
+
         if (stage >= PipelineStage.Transcription)
+        {
             job.SetStageProgress(PipelineStage.Transcription, 100);
+        }
+
         if (stage >= PipelineStage.Segmentation)
+        {
             job.SetStageProgress(PipelineStage.Segmentation, 100);
+        }
 
         await DbContext.Jobs.AddAsync(job);
         await DbContext.SaveChangesAsync();

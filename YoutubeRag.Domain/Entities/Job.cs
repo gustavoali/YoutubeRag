@@ -1,5 +1,5 @@
-using YoutubeRag.Domain.Enums;
 using System.Text.Json;
+using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Domain.Entities;
 
@@ -65,7 +65,10 @@ public class Job : BaseEntity
         try
         {
             var progress = JsonSerializer.Deserialize<Dictionary<string, double>>(StageProgressJson);
-            if (progress == null) return new Dictionary<PipelineStage, double>();
+            if (progress == null)
+            {
+                return new Dictionary<PipelineStage, double>();
+            }
 
             return progress.ToDictionary(
                 kvp => Enum.Parse<PipelineStage>(kvp.Key),
@@ -98,7 +101,10 @@ public class Job : BaseEntity
     public int CalculateOverallProgress()
     {
         var stageProgress = GetStageProgress();
-        if (stageProgress.Count == 0) return 0;
+        if (stageProgress.Count == 0)
+        {
+            return 0;
+        }
 
         // Stage weights (total = 100)
         var weights = new Dictionary<PipelineStage, double>

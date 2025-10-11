@@ -1,6 +1,6 @@
+using System.Text.Json;
 using FluentValidation;
 using YoutubeRag.Application.DTOs.Job;
-using System.Text.Json;
 
 namespace YoutubeRag.Application.Validators.Job;
 
@@ -90,7 +90,11 @@ public class UpdateJobStatusDtoValidator : AbstractValidator<UpdateJobStatusDto>
     /// </summary>
     private bool BeValidStatus(string status)
     {
-        if (string.IsNullOrEmpty(status)) return false;
+        if (string.IsNullOrEmpty(status))
+        {
+            return false;
+        }
+
         return _validStatuses.Contains(status.ToLowerInvariant());
     }
 
@@ -99,7 +103,10 @@ public class UpdateJobStatusDtoValidator : AbstractValidator<UpdateJobStatusDto>
     /// </summary>
     private bool BeValidJson(string? json)
     {
-        if (string.IsNullOrEmpty(json)) return true;
+        if (string.IsNullOrEmpty(json))
+        {
+            return true;
+        }
 
         try
         {
@@ -117,7 +124,10 @@ public class UpdateJobStatusDtoValidator : AbstractValidator<UpdateJobStatusDto>
     /// </summary>
     private bool HaveValidProgressForStatus(UpdateJobStatusDto dto)
     {
-        if (!dto.Progress.HasValue) return true;
+        if (!dto.Progress.HasValue)
+        {
+            return true;
+        }
 
         switch (dto.Status?.ToLowerInvariant())
         {

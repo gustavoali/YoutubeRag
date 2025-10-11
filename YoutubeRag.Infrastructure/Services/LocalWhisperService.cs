@@ -1,10 +1,10 @@
-using YoutubeRag.Application.Interfaces;
-using YoutubeRag.Application.DTOs.Transcription;
-using YoutubeRag.Application.Configuration;
-using YoutubeRag.Domain.Entities;
-using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using YoutubeRag.Application.Configuration;
+using YoutubeRag.Application.DTOs.Transcription;
+using YoutubeRag.Application.Interfaces;
+using YoutubeRag.Domain.Entities;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -59,7 +59,9 @@ public class LocalWhisperService : ITranscriptionService
 
             using var process = Process.Start(processInfo);
             if (process == null)
+            {
                 throw new InvalidOperationException("Failed to start Whisper process");
+            }
 
             var output = await process.StandardOutput.ReadToEndAsync();
             var error = await process.StandardError.ReadToEndAsync();
@@ -75,7 +77,9 @@ public class LocalWhisperService : ITranscriptionService
 
             // Clean up temporary file
             if (File.Exists(outputFile))
+            {
                 File.Delete(outputFile);
+            }
 
             _logger.LogInformation("Local Whisper: Successfully transcribed audio, duration: {Duration}, segments: {Count}",
                 result.Duration, result.Segments.Count);
@@ -105,7 +109,9 @@ public class LocalWhisperService : ITranscriptionService
         finally
         {
             if (File.Exists(tempFilePath))
+            {
                 File.Delete(tempFilePath);
+            }
         }
     }
 
@@ -318,6 +324,7 @@ public class LocalWhisperService : ITranscriptionService
             _logger.LogError("Whisper executable not found for video: {VideoId}", videoId);
             throw new InvalidOperationException("Whisper executable not found. Please install whisper: pip install openai-whisper");
         }
+
         _logger.LogDebug("Using Whisper executable: {WhisperPath}, Model: {ModelSize}", whisperPath, modelSize);
 
         // Prepare output directory
@@ -429,7 +436,11 @@ public class LocalWhisperService : ITranscriptionService
         // Clean up temporary JSON file
         if (File.Exists(outputFile))
         {
-            try { File.Delete(outputFile); } catch { /* Ignore cleanup errors */ }
+            try
+            {
+                File.Delete(outputFile);
+            }
+            catch { /* Ignore cleanup errors */ }
         }
 
         return result;
@@ -441,7 +452,9 @@ public class LocalWhisperService : ITranscriptionService
     private bool IsOutOfMemoryError(string errorMessage)
     {
         if (string.IsNullOrEmpty(errorMessage))
+        {
             return false;
+        }
 
         var oomIndicators = new[]
         {
@@ -566,6 +579,7 @@ public class LocalWhisperService : ITranscriptionService
                         _logger.LogInformation("Found Whisper executable at: {Path}", path);
                         return path;
                     }
+
                     continue;
                 }
 

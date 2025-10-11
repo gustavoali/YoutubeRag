@@ -1,8 +1,8 @@
 using Bogus;
-using YoutubeRag.Domain.Entities;
-using YoutubeRag.Domain.Enums;
 using YoutubeRag.Application.DTOs.Auth;
 using YoutubeRag.Application.DTOs.Video;
+using YoutubeRag.Domain.Entities;
+using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Tests.Integration.Helpers;
 
@@ -164,5 +164,4 @@ public static class TestDataGenerator
             Description = _faker.Lorem.Paragraph()
         };
     }
-
 }

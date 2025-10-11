@@ -1,10 +1,10 @@
+using System.Net;
+using System.Security.Cryptography;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
-using System.Net;
-using System.Security.Cryptography;
 using YoutubeRag.Application.Configuration;
 using YoutubeRag.Infrastructure.Services;
 
@@ -397,6 +397,7 @@ public class WhisperModelDownloadServiceTests
     #endregion
 
     // Cleanup after all tests
+    [Fact]
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))

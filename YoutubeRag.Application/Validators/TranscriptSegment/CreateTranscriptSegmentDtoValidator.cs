@@ -63,7 +63,11 @@ public class CreateTranscriptSegmentDtoValidator : AbstractValidator<CreateTrans
     /// </summary>
     private bool BeValidGuid(string id)
     {
-        if (string.IsNullOrEmpty(id)) return false;
+        if (string.IsNullOrEmpty(id))
+        {
+            return false;
+        }
+
         return Guid.TryParse(id, out _);
     }
 
@@ -72,15 +76,24 @@ public class CreateTranscriptSegmentDtoValidator : AbstractValidator<CreateTrans
     /// </summary>
     private bool NotContainControlCharacters(string text)
     {
-        if (string.IsNullOrEmpty(text)) return false;
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
 
         foreach (char c in text)
         {
             // Allow common whitespace characters
-            if (c == '\n' || c == '\r' || c == '\t') continue;
+            if (c == '\n' || c == '\r' || c == '\t')
+            {
+                continue;
+            }
 
             // Reject other control characters
-            if (char.IsControl(c)) return false;
+            if (char.IsControl(c))
+            {
+                return false;
+            }
         }
 
         return true;
@@ -94,10 +107,16 @@ public class CreateTranscriptSegmentDtoValidator : AbstractValidator<CreateTrans
         var duration = dto.EndTime - dto.StartTime;
 
         // Segment should be at least 0.1 seconds
-        if (duration < 0.1) return false;
+        if (duration < 0.1)
+        {
+            return false;
+        }
 
         // Single segment shouldn't be longer than 5 minutes (300 seconds)
-        if (duration > 300) return false;
+        if (duration > 300)
+        {
+            return false;
+        }
 
         return true;
     }

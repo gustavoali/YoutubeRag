@@ -46,7 +46,10 @@ public class ResetPasswordRequestDtoValidator : AbstractValidator<ResetPasswordR
     /// </summary>
     private bool NotContainCommonPatterns(string password)
     {
-        if (string.IsNullOrEmpty(password)) return false;
+        if (string.IsNullOrEmpty(password))
+        {
+            return false;
+        }
 
         var commonPatterns = new[]
         {

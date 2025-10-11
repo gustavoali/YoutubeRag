@@ -31,7 +31,10 @@ public class GoogleAuthRequestDtoValidator : AbstractValidator<GoogleAuthRequest
     /// </summary>
     private bool BeValidJwtFormat(string token)
     {
-        if (string.IsNullOrEmpty(token)) return false;
+        if (string.IsNullOrEmpty(token))
+        {
+            return false;
+        }
 
         // JWT tokens have three parts separated by dots
         var parts = token.Split('.');

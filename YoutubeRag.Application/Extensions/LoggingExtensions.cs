@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace YoutubeRag.Application.Extensions;
 
@@ -17,7 +17,9 @@ public static class LoggingExtensions
     public static IDisposable? BeginScopeWith(this ILogger logger, params (string key, object? value)[] properties)
     {
         if (!properties.Any())
+        {
             return null;
+        }
 
         var dictionary = properties.ToDictionary(p => p.key, p => p.value);
         return logger.BeginScope(dictionary);

@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using YoutubeRag.Domain.Enums;
 
 namespace YoutubeRag.Api.Controllers;
@@ -65,13 +65,15 @@ public class JobsController : ControllerBase
             }
         };
 
-        return Ok(new {
+        return Ok(new
+        {
             jobs,
             total = jobs.Length,
             page,
             page_size = pageSize,
             has_more = false,
-            filters = new {
+            filters = new
+            {
                 status,
                 job_type = jobType,
                 from_date = fromDate,
@@ -86,7 +88,8 @@ public class JobsController : ControllerBase
     [HttpGet("{jobId}")]
     public async Task<ActionResult> GetJob(string jobId)
     {
-        return Ok(new {
+        return Ok(new
+        {
             id = jobId,
             job_type = "video_processing",
             status = JobStatus.Running.ToString(),
@@ -168,7 +171,8 @@ public class JobsController : ControllerBase
     [HttpPost("{jobId}/cancel")]
     public async Task<ActionResult> CancelJob(string jobId)
     {
-        return Ok(new {
+        return Ok(new
+        {
             job_id = jobId,
             status = JobStatus.Cancelled.ToString(),
             message = "Job cancellation requested",
@@ -184,7 +188,8 @@ public class JobsController : ControllerBase
     {
         var newJobId = Guid.NewGuid().ToString();
 
-        return Ok(new {
+        return Ok(new
+        {
             original_job_id = jobId,
             new_job_id = newJobId,
             status = JobStatus.Pending.ToString(),
@@ -201,7 +206,8 @@ public class JobsController : ControllerBase
         DateTime? fromDate = null,
         DateTime? toDate = null)
     {
-        var stats = new {
+        var stats = new
+        {
             total_jobs = 156,
             completed_jobs = 142,
             failed_jobs = 8,
@@ -234,14 +240,16 @@ public class JobsController : ControllerBase
     [HttpGet("resources")]
     public async Task<ActionResult> GetResourceUsage()
     {
-        return Ok(new {
+        return Ok(new
+        {
             cpu_usage_percent = 45.2,
             memory_usage_percent = 62.8,
             disk_usage_percent = 23.5,
             active_workers = 3,
             max_workers = 8,
             queue_size = 2,
-            processing_capacity = new {
+            processing_capacity = new
+            {
                 videos_per_hour = 24,
                 current_throughput = 18
             },
@@ -262,7 +270,8 @@ public class JobsController : ControllerBase
 
         var jobId = Guid.NewGuid().ToString();
 
-        return Ok(new {
+        return Ok(new
+        {
             id = jobId,
             job_type = request.JobType,
             status = JobStatus.Pending.ToString(),
@@ -278,14 +287,16 @@ public class JobsController : ControllerBase
     [HttpPost("bulk")]
     public async Task<ActionResult> BulkJobOperation([FromBody] BulkJobRequest request)
     {
-        var results = request.JobIds.Select(jobId => new {
+        var results = request.JobIds.Select(jobId => new
+        {
             job_id = jobId,
             operation = request.Operation,
             status = "success",
             message = $"Operation '{request.Operation}' completed successfully"
         });
 
-        return Ok(new {
+        return Ok(new
+        {
             operation = request.Operation,
             results,
             successful_count = results.Count(),

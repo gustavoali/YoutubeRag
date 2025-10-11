@@ -1,10 +1,10 @@
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using YoutubeRag.Application.Interfaces;
 using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Infrastructure.Data;
-using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace YoutubeRag.Infrastructure.Services;
 
@@ -57,22 +57,32 @@ public class JobService : IJobService
         {
             var job = await _context.Jobs.FindAsync(jobId);
             if (job == null)
+            {
                 throw new ArgumentException($"Job not found: {jobId}");
+            }
 
             job.Status = status;
             job.UpdatedAt = DateTime.UtcNow;
 
             if (statusMessage != null)
+            {
                 job.StatusMessage = statusMessage;
+            }
 
             if (progress.HasValue)
+            {
                 job.Progress = Math.Clamp(progress.Value, 0, 100);
+            }
 
             if (status == JobStatus.Running && job.StartedAt == null)
+            {
                 job.StartedAt = DateTime.UtcNow;
+            }
 
             if (status == JobStatus.Completed || status == JobStatus.Failed)
+            {
                 job.CompletedAt = DateTime.UtcNow;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -147,7 +157,9 @@ public class JobService : IJobService
         {
             var job = await _context.Jobs.FindAsync(jobId);
             if (job == null)
+            {
                 return false;
+            }
 
             if (job.Status == JobStatus.Pending || job.Status == JobStatus.Running)
             {
@@ -179,7 +191,9 @@ public class JobService : IJobService
         {
             var job = await GetJobAsync(jobId);
             if (job == null)
+            {
                 throw new ArgumentException($"Job not found: {jobId}");
+            }
 
             await UpdateJobStatusAsync(jobId, JobStatus.Running, "Job execution started");
 

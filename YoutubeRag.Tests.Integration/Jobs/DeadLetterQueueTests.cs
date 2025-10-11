@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -7,7 +8,6 @@ using YoutubeRag.Domain.Entities;
 using YoutubeRag.Domain.Enums;
 using YoutubeRag.Tests.Integration.Helpers;
 using YoutubeRag.Tests.Integration.Infrastructure;
-using System.Text.Json;
 
 namespace YoutubeRag.Tests.Integration.Jobs;
 

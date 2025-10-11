@@ -57,7 +57,10 @@ public class RegisterRequestDtoValidator : AbstractValidator<RegisterRequestDto>
     /// </summary>
     private bool BeValidEmailDomain(string email)
     {
-        if (string.IsNullOrEmpty(email)) return false;
+        if (string.IsNullOrEmpty(email))
+        {
+            return false;
+        }
 
         // List of common disposable email domains to block
         var disposableDomains = new[]
@@ -75,7 +78,10 @@ public class RegisterRequestDtoValidator : AbstractValidator<RegisterRequestDto>
     /// </summary>
     private bool NotContainCommonPatterns(string password)
     {
-        if (string.IsNullOrEmpty(password)) return false;
+        if (string.IsNullOrEmpty(password))
+        {
+            return false;
+        }
 
         var commonPatterns = new[]
         {

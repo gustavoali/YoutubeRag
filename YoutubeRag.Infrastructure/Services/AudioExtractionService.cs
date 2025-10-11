@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using YoutubeExplode;
 using YoutubeExplode.Videos.Streams;
 using YoutubeRag.Application.Configuration;
@@ -639,6 +639,7 @@ public class AudioExtractionService : IAudioExtractionService
                         _logger.LogInformation("Found yt-dlp executable at: {Path}", path);
                         return path;
                     }
+
                     continue;
                 }
 
@@ -740,6 +741,7 @@ public class AudioExtractionService : IAudioExtractionService
                     process.Kill();
                     await process.WaitForExitAsync();
                 }
+
                 throw new TimeoutException($"yt-dlp audio extraction timed out after {timeout.TotalMinutes} minutes for video {youTubeId}");
             }
 

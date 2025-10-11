@@ -57,7 +57,12 @@
       "Bash(Select-String -Pattern \"(Failed|Passed|Total tests)\" -Context 2)",
       "Bash(Select-String -Pattern \"(Test Run|Total tests|Passed|Failed|Skipped)\")",
       "Bash(chmod:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet new tool-manifest)",
+      "Bash(dotnet tool install:*)",
+      "Bash(dotnet husky:*)",
+      "Bash(dotnet format:*)"
     ],
     "deny": [],
     "ask": []

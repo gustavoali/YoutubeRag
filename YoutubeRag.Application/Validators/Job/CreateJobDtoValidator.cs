@@ -1,6 +1,6 @@
+using System.Text.Json;
 using FluentValidation;
 using YoutubeRag.Application.DTOs.Job;
-using System.Text.Json;
 
 namespace YoutubeRag.Application.Validators.Job;
 
@@ -77,7 +77,11 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
     /// </summary>
     private bool BeValidJobType(string jobType)
     {
-        if (string.IsNullOrEmpty(jobType)) return false;
+        if (string.IsNullOrEmpty(jobType))
+        {
+            return false;
+        }
+
         return _validJobTypes.Contains(jobType.ToLowerInvariant());
     }
 
@@ -86,7 +90,11 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
     /// </summary>
     private bool BeValidGuid(string? id)
     {
-        if (string.IsNullOrEmpty(id)) return false;
+        if (string.IsNullOrEmpty(id))
+        {
+            return false;
+        }
+
         return Guid.TryParse(id, out _);
     }
 
@@ -95,7 +103,10 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
     /// </summary>
     private bool BeValidJson(string? json)
     {
-        if (string.IsNullOrEmpty(json)) return true;
+        if (string.IsNullOrEmpty(json))
+        {
+            return true;
+        }
 
         try
         {
@@ -113,7 +124,10 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
     /// </summary>
     private bool HaveValidJobSpecificParameters(CreateJobDto dto)
     {
-        if (string.IsNullOrEmpty(dto.Parameters)) return true;
+        if (string.IsNullOrEmpty(dto.Parameters))
+        {
+            return true;
+        }
 
         try
         {
@@ -128,8 +142,11 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
                     {
                         var langValue = lang.GetString();
                         if (!string.IsNullOrEmpty(langValue) && !System.Text.RegularExpressions.Regex.IsMatch(langValue, @"^[a-z]{2}(-[A-Z]{2})?$"))
+                        {
                             return false;
+                        }
                     }
+
                     break;
 
                 case "embedding":
@@ -139,8 +156,11 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
                         var modelValue = model.GetString();
                         var validModels = new[] { "text-embedding-ada-002", "text-embedding-3-small", "text-embedding-3-large" };
                         if (!string.IsNullOrEmpty(modelValue) && !validModels.Contains(modelValue))
+                        {
                             return false;
+                        }
                     }
+
                     break;
 
                 case "video_processing":
@@ -150,8 +170,11 @@ public class CreateJobDtoValidator : AbstractValidator<CreateJobDto>
                         var qualityValue = quality.GetString();
                         var validQualities = new[] { "low", "medium", "high", "auto" };
                         if (!string.IsNullOrEmpty(qualityValue) && !validQualities.Contains(qualityValue.ToLowerInvariant()))
+                        {
                             return false;
+                        }
                     }
+
                     break;
             }
 

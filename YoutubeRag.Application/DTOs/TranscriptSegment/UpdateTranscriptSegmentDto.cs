@@ -47,6 +47,7 @@ public record UpdateTranscriptSegmentDto
         {
             return EndTime.Value > StartTime.Value;
         }
+
         return true;
     }
 }

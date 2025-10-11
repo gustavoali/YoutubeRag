@@ -66,7 +66,10 @@ public class UpdateUserDtoValidator : AbstractValidator<UpdateUserDto>
     /// </summary>
     private bool BeValidUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url)) return true;
+        if (string.IsNullOrEmpty(url))
+        {
+            return true;
+        }
 
         return Uri.TryCreate(url, UriKind.Absolute, out var result) &&
                (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
@@ -77,7 +80,10 @@ public class UpdateUserDtoValidator : AbstractValidator<UpdateUserDto>
     /// </summary>
     private bool BeValidImageUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url)) return true;
+        if (string.IsNullOrEmpty(url))
+        {
+            return true;
+        }
 
         var validExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp" };
         var urlLower = url.ToLowerInvariant();
