@@ -40,7 +40,81 @@ RUN dotnet build YoutubeRag.sln \
     -warnaserror
 
 ################################################################################
-# Stage 3: Test stage (optional - can be skipped in production builds)
+# Stage 3: Development stage (DEVOPS-010)
+# For local development with hot reload and debugging
+################################################################################
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS development
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    vim \
+    nano \
+    git \
+    wget \
+    net-tools \
+    procps \
+    htop \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install .NET diagnostic and development tools
+RUN dotnet tool install --global dotnet-ef && \
+    dotnet tool install --global dotnet-watch && \
+    dotnet tool install --global dotnet-counters && \
+    dotnet tool install --global dotnet-trace && \
+    dotnet tool install --global dotnet-dump
+
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+# Create Python virtual environment and install Whisper
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir openai-whisper
+
+# Set working directory
+WORKDIR /src
+
+# Copy solution and restore (for caching)
+COPY YoutubeRag.sln ./
+COPY YoutubeRag.Domain/*.csproj ./YoutubeRag.Domain/
+COPY YoutubeRag.Application/*.csproj ./YoutubeRag.Application/
+COPY YoutubeRag.Infrastructure/*.csproj ./YoutubeRag.Infrastructure/
+COPY YoutubeRag.Api/*.csproj ./YoutubeRag.Api/
+COPY YoutubeRag.Tests.Integration/*.csproj ./YoutubeRag.Tests.Integration/
+
+RUN dotnet restore YoutubeRag.sln
+
+# Copy all source code
+COPY . .
+
+# Build in Debug mode for development
+RUN dotnet build YoutubeRag.sln --configuration Debug --no-restore
+
+# Set development environment variables
+ENV ASPNETCORE_ENVIRONMENT=Development \
+    DOTNET_USE_POLLING_FILE_WATCHER=true \
+    DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true \
+    ASPNETCORE_URLS=http://+:8080 \
+    PYTHONUNBUFFERED=1
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/temp /app/uploads /app/models
+
+WORKDIR /src/YoutubeRag.Api
+
+# Expose ports
+EXPOSE 8080
+
+# Default command: run with hot reload
+CMD ["dotnet", "watch", "run", "--no-launch-profile"]
+
+################################################################################
+# Stage 4: Test stage (optional - can be skipped in production builds)
 ################################################################################
 FROM build AS test
 WORKDIR /src
@@ -62,7 +136,7 @@ RUN dotnet test YoutubeRag.sln \
     || echo "Tests skipped in Docker build (require external services)"
 
 ################################################################################
-# Stage 4: Publish stage
+# Stage 5: Publish stage
 ################################################################################
 FROM build AS publish
 WORKDIR /src
@@ -81,7 +155,7 @@ RUN dotnet publish YoutubeRag.Api/YoutubeRag.Api.csproj \
     -p:DebugSymbols=false
 
 ################################################################################
-# Stage 5: Runtime base with Python/Whisper support
+# Stage 6: Runtime base with Python/Whisper support
 ################################################################################
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS runtime-base
 
@@ -102,7 +176,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir openai-whisper
 
 ################################################################################
-# Stage 6: Final runtime stage
+# Stage 7: Final runtime stage
 ################################################################################
 FROM runtime-base AS runtime
 
@@ -144,7 +218,7 @@ EXPOSE 8080
 ENTRYPOINT ["dotnet", "YoutubeRag.Api.dll"]
 
 ################################################################################
-# Stage 7: Alpine-based minimal runtime (alternative lightweight option)
+# Stage 8: Alpine-based minimal runtime (alternative lightweight option)
 ################################################################################
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine${ALPINE_VERSION} AS runtime-alpine
 
@@ -187,7 +261,7 @@ EXPOSE 8080
 ENTRYPOINT ["dotnet", "YoutubeRag.Api.dll"]
 
 ################################################################################
-# Stage 8: Debug stage (for troubleshooting)
+# Stage 9: Debug stage (for troubleshooting)
 ################################################################################
 FROM runtime AS debug
 
@@ -214,7 +288,7 @@ ENV PATH="${PATH}:/root/.dotnet/tools"
 USER appuser
 
 ################################################################################
-# Stage 9: Migration runner (for database migrations)
+# Stage 10: Migration runner (for database migrations)
 ################################################################################
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS migration
 

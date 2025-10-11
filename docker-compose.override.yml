@@ -1,0 +1,139 @@
+# Docker Compose Override for Local Development
+# DEVOPS-009: Enhanced Docker Compose for local development with live reload
+#
+# This file is automatically merged with docker-compose.yml when you run:
+#   docker-compose up
+#
+# It provides development-specific configuration including:
+# - Volume mounts for live code reload
+# - Debug mode configuration
+# - Hot reload with dotnet watch
+# - Optimized for developer experience
+
+version: '3.8'
+
+services:
+  # Development API with Hot Reload
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development  # Use development stage from Dockerfile
+      args:
+        DOTNET_VERSION: 8.0
+
+    # Override command for hot reload
+    command: >
+      sh -c "
+        echo '🔧 Starting YoutubeRag.Api in DEVELOPMENT mode with HOT RELOAD...' &&
+        echo '📂 Applying database migrations...' &&
+        dotnet ef database update --project YoutubeRag.Infrastructure --startup-project YoutubeRag.Api --no-build || true &&
+        echo '🚀 Starting API with dotnet watch...' &&
+        dotnet watch run --project YoutubeRag.Api --no-launch-profile
+      "
+
+    environment:
+      # Development environment
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_USE_POLLING_FILE_WATCHER: 'true'  # Required for hot reload in containers
+      DOTNET_WATCH_RESTART_ON_RUDE_EDIT: 'true'
+
+      # Enable detailed errors
+      ASPNETCORE_DETAILEDERRORS: 'true'
+
+      # Disable HTTPS redirect for local development
+      ASPNETCORE_HTTPS_PORT: ''
+
+      # Enhanced logging for development
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft.AspNetCore: Information
+      Logging__LogLevel__Microsoft.EntityFrameworkCore: Information
+
+    volumes:
+      # Mount source code for live reload (read-only to prevent accidental modifications)
+      - .:/src:ro
+
+      # Mount NuGet packages cache (speeds up restore)
+      - ${USERPROFILE}/.nuget/packages:/root/.nuget/packages:ro  # Windows
+      # For Linux/macOS, add: ~/.nuget/packages:/root/.nuget/packages:ro
+
+      # Writable volumes for runtime
+      - ./logs:/app/logs:rw
+      - ./temp:/app/temp:rw
+      - ./uploads:/app/uploads:rw
+      - ./models:/app/models:rw
+
+      # Build output (prevents rebuilding every time)
+      - api_build_output:/src/YoutubeRag.Api/bin
+      - api_obj_output:/src/YoutubeRag.Api/obj
+
+    # Override ports to avoid conflicts
+    ports:
+      - "5000:8080"  # API
+      - "5001:8081"  # Hangfire Dashboard (if enabled)
+
+    # Don't restart automatically in dev mode (easier to see errors)
+    restart: "no"
+
+    # Disable health check in dev (reduces noise)
+    healthcheck:
+      disable: true
+
+  # MySQL with development settings
+  mysql:
+    environment:
+      # Additional MySQL settings for development
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: youtube_rag_db
+      MYSQL_USER: youtube_rag_user
+      MYSQL_PASSWORD: youtube_rag_password
+
+    # Expose logs in development
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Mount initialization scripts
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # You can add custom init scripts here:
+      # - ./scripts/db-init:/docker-entrypoint-initdb.d:ro
+
+  # Redis with development settings
+  redis:
+    # No password in development for simplicity
+    command: redis-server --appendonly yes
+
+    environment:
+      REDIS_PASSWORD: ''
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Auto-enable development tools
+  redis-commander:
+    profiles: []  # Remove profile requirement (always start in dev)
+    ports:
+      - "8081:8081"
+
+  adminer:
+    profiles: []  # Remove profile requirement (always start in dev)
+    ports:
+      - "8080:8080"
+
+# Additional volumes for build optimization
+volumes:
+  api_build_output:
+    driver: local
+  api_obj_output:
+    driver: local
+
+# Network configuration (inherits from docker-compose.yml)
+networks:
+  youtube-rag-network:
+    driver: bridge
