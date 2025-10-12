@@ -70,7 +70,9 @@
       "Bash(dotnet tool update:*)",
       "Bash(dotnet sln add:*)",
       "Bash(git check-ignore:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(dotnet tool restore:*)",
+      "Bash(dotnet stryker:*)"
     ],
     "deny": [],
     "ask": []

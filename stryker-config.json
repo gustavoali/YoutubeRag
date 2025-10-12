@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-net/master/src/Stryker.CLI/Stryker.CLI/schema.json",
+  "stryker-config": {
+    "project": "YoutubeRag.Domain/YoutubeRag.Domain.csproj",
+    "test-projects": [
+      "YoutubeRag.Tests.Unit/YoutubeRag.Tests.Unit.csproj"
+    ],
+    "reporters": [
+      "html",
+      "json",
+      "cleartext",
+      "progress"
+    ],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 50
+    },
+    "mutation-level": "standard",
+    "mutate": [
+      "**/*.cs"
+    ],
+    "ignore-methods": [
+      "*ToString*",
+      "*GetHashCode*",
+      "*Equals*"
+    ],
+    "concurrency": 4
+  }
+}
