@@ -81,7 +81,17 @@ jobs:
       # Step 5.5: Apply Database Migrations
       - name: Apply Database Migrations
         env:
+          # Environment
+          ASPNETCORE_ENVIRONMENT: "Testing"
+
+          # Database and Cache
           ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=test_db;User=root;Password=test_password;AllowPublicKeyRetrieval=True;"
+          ConnectionStrings__Redis: "localhost:6379"
+
+          # JWT Authentication (required by EnvironmentValidator)
+          Jwt__Secret: "TestSecretKeyForJWTTokenGenerationMinimum256Bits!"
+          Jwt__Issuer: "YoutubeRagTestIssuer"
+          Jwt__Audience: "YoutubeRagTestAudience"
         run: |
           # Install EF Core tools
           dotnet tool install --global dotnet-ef --version 8.0.0
