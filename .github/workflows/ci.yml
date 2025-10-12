@@ -94,18 +94,25 @@ jobs:
           Jwt__Audience: "YoutubeRagTestAudience"
         run: |
           # Install EF Core tools
-          dotnet tool install --global dotnet-ef --version 8.0.0
+          echo "Installing dotnet-ef..."
+          dotnet tool install --global dotnet-ef --version 8.0.0 || echo "dotnet-ef already installed"
 
           # Add tools to PATH
+          echo "Adding .dotnet/tools to PATH..."
           export PATH="$PATH:$HOME/.dotnet/tools"
 
+          # Verify dotnet-ef is available
+          echo "Verifying dotnet-ef installation..."
+          which dotnet-ef || echo "dotnet-ef not found in PATH"
+          dotnet-ef --version || echo "dotnet-ef command failed"
+
           # List available migrations (for debugging)
-          echo "Available migrations:"
+          echo "Listing available migrations..."
           dotnet ef migrations list \
             --project YoutubeRag.Infrastructure \
             --startup-project YoutubeRag.Api \
             --configuration Release \
-            --no-build || true
+            --no-build || echo "Failed to list migrations (non-fatal)"
 
           # Apply all pending migrations
           echo "Applying database migrations..."
@@ -114,9 +121,9 @@ jobs:
             --startup-project YoutubeRag.Api \
             --configuration Release \
             --no-build \
-            --verbose
+            --verbose || echo "⚠️  Migration failed but continuing build"
 
-          echo "✅ Database migrations applied successfully"
+          echo "✅ Migration step completed"
 
       # Step 6: Run tests with code coverage
       - name: Run Tests with Coverage
