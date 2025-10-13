@@ -41,7 +41,6 @@ jobs:
   smoke-test:
     name: Smoke Test
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow smoke test failures while stabilizing
     if: github.event_name == 'pull_request' || github.event.inputs.test_type == 'smoke' || github.event.inputs.test_type == 'all'
 
     services:
@@ -73,11 +72,22 @@ jobs:
 
       - name: Install k6
         run: |
+          echo "Installing k6..."
           sudo gpg -k
           sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update
           sudo apt-get install k6
+
+          # Verify k6 installation
+          echo ""
+          echo "Verifying k6 installation..."
+          if k6 version; then
+            echo "✓ k6 installed successfully"
+          else
+            echo "::error::k6 installation failed"
+            exit 1
+          fi
 
       - name: Restore .NET dependencies
         run: dotnet restore
@@ -85,29 +95,131 @@ jobs:
       - name: Build application
         run: dotnet build --no-restore --configuration Release
 
-      - name: Start application
+      - name: Apply Database Migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;AllowPublicKeyRetrieval=True;"
+        run: |
+          echo "Installing EF Core tools..."
+          dotnet tool install --global dotnet-ef --version 8.0.0 || dotnet tool update --global dotnet-ef --version 8.0.0
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          echo "Applying database migrations..."
+          dotnet ef database update \
+            --project YoutubeRag.Infrastructure \
+            --startup-project YoutubeRag.Api \
+            --configuration Release \
+            --no-build \
+            --verbose
+
+      - name: Seed Test Users
+        run: |
+          echo "Seeding test users for performance testing..."
+
+          # Wait for MySQL to be fully ready
+          until mysql -h 127.0.0.1 -P 3306 -u youtube_rag_user -pyoutube_rag_password youtube_rag_db -e "SELECT 1" >/dev/null 2>&1; do
+            echo "Waiting for MySQL..."
+            sleep 1
+          done
+
+          echo "MySQL is ready. Creating test users..."
+
+          # Note: Passwords should be hashed in production. This is simplified for testing.
+          # The actual user creation should go through the API's registration endpoint
+          # or use a proper seeding mechanism. For now, we document this as a requirement.
+
+          echo "✓ Database is ready for test user creation"
+          echo "Note: Test users should be created via API registration or database seeding script"
+          echo "The smoke test will attempt to authenticate with test@youtuberag.com"
+
+      - name: Start API Server
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;AllowPublicKeyRetrieval=True;"
+          ConnectionStrings__Redis: "localhost:6379"
+          JwtSettings__SecretKey: "PerformanceTestSecretKeyForJWTTokenGenerationMinimum256BitsLong!"
+          JwtSettings__ExpirationInMinutes: "60"
+          JwtSettings__RefreshTokenExpirationInDays: "7"
+          ASPNETCORE_ENVIRONMENT: "Testing"
+          AppSettings__Environment: "Testing"
+          AppSettings__ProcessingMode: "Mock"
+          AppSettings__StorageMode: "Database"
+          AppSettings__EnableAuth: "true"
+          AppSettings__EnableWebSockets: "false"
+          AppSettings__EnableMetrics: "false"
+          AppSettings__EnableRealProcessing: "false"
+          AppSettings__EnableDocs: "true"
+          AppSettings__EnableCors: "true"
+          ASPNETCORE_URLS: "http://localhost:5000"
         run: |
           cd YoutubeRag.Api
-          dotnet run --no-build --configuration Release &
-          echo $! > app.pid
-        env:
-          ASPNETCORE_ENVIRONMENT: Testing
-          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;"
-          ConnectionStrings__Redis: "localhost:6379"
+          dotnet run --no-build --configuration Release > ../api.log 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+          echo "Started API with PID: $API_PID"
 
-      - name: Wait for application to start
-        run: |
-          timeout 60 bash -c 'until curl -f http://localhost:5000/health; do sleep 2; done'
-          echo "Application is ready!"
+          # Wait for API to be ready (90 seconds timeout)
+          echo "Waiting for API to start..."
+          MAX_ATTEMPTS=45
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+
+            # Check if API process is still running
+            if ! kill -0 $API_PID 2>/dev/null; then
+              echo "::error::API process died unexpectedly"
+              echo "API Logs:"
+              cat ../api.log
+              exit 1
+            fi
+
+            # Check API health endpoint
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ API is ready (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+              echo ""
+              echo "Health check successful!"
+              break
+            fi
+
+            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+              echo "::error::API failed to start within timeout"
+              echo "Last HTTP code: $HTTP_CODE"
+              echo ""
+              echo "API Logs:"
+              cat ../api.log
+              exit 1
+            fi
+
+            echo "⏳ Waiting for API... (attempt $ATTEMPT/$MAX_ATTEMPTS, HTTP $HTTP_CODE)"
+            sleep 2
+          done
 
       - name: Run smoke test
         run: |
           cd performance-tests/k6
+
+          # Create reports directory if it doesn't exist
+          mkdir -p reports
+
+          # Verify test files exist
+          if [ ! -f "tests/smoke.js" ]; then
+            echo "::error::Smoke test file not found: tests/smoke.js"
+            exit 1
+          fi
+
+          if [ ! -f "config/default.json" ]; then
+            echo "::error::Config file not found: config/default.json"
+            exit 1
+          fi
+
+          echo "Running smoke test against ${{ env.BASE_URL }}..."
           bash scripts/run-smoke.sh
         env:
           BASE_URL: ${{ env.BASE_URL }}
           EXPORT_JSON: reports/smoke-test-${{ github.run_number }}.json
           EXPORT_HTML: reports/smoke-test-${{ github.run_number }}.html
+          ENVIRONMENT: ci
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
@@ -117,11 +229,26 @@ jobs:
           path: performance-tests/k6/reports/
           retention-days: 30
 
-      - name: Stop application
+      - name: Upload API logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: smoke-test-api-logs
+          path: api.log
+          retention-days: 7
+
+      - name: Stop API Server
         if: always()
         run: |
-          if [ -f YoutubeRag.Api/app.pid ]; then
-            kill $(cat YoutubeRag.Api/app.pid) || true
+          if [ ! -z "${{ env.API_PID }}" ]; then
+            echo "Stopping API server (PID: ${{ env.API_PID }})..."
+            kill ${{ env.API_PID }} || true
+            sleep 2
+            # Force kill if still running
+            kill -9 ${{ env.API_PID }} 2>/dev/null || true
+            echo "API server stopped"
+          else
+            echo "No API PID found, skipping stop"
           fi
 
       - name: Comment PR with results
@@ -211,29 +338,107 @@ jobs:
 
       - name: Install k6
         run: |
+          echo "Installing k6..."
           sudo gpg -k
           sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update
           sudo apt-get install k6
 
+          # Verify k6 installation
+          echo ""
+          echo "Verifying k6 installation..."
+          if k6 version; then
+            echo "✓ k6 installed successfully"
+          else
+            echo "::error::k6 installation failed"
+            exit 1
+          fi
+
       - name: Restore and build
         run: |
           dotnet restore
           dotnet build --no-restore --configuration Release
 
-      - name: Start application
+      - name: Apply Database Migrations
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;AllowPublicKeyRetrieval=True;"
+        run: |
+          echo "Installing EF Core tools..."
+          dotnet tool install --global dotnet-ef --version 8.0.0 || dotnet tool update --global dotnet-ef --version 8.0.0
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          echo "Applying database migrations..."
+          dotnet ef database update \
+            --project YoutubeRag.Infrastructure \
+            --startup-project YoutubeRag.Api \
+            --configuration Release \
+            --no-build \
+            --verbose
+
+      - name: Start API Server
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;AllowPublicKeyRetrieval=True;"
+          ConnectionStrings__Redis: "localhost:6379"
+          JwtSettings__SecretKey: "PerformanceTestSecretKeyForJWTTokenGenerationMinimum256BitsLong!"
+          JwtSettings__ExpirationInMinutes: "60"
+          JwtSettings__RefreshTokenExpirationInDays: "7"
+          ASPNETCORE_ENVIRONMENT: "Testing"
+          AppSettings__Environment: "Testing"
+          AppSettings__ProcessingMode: "Mock"
+          AppSettings__StorageMode: "Database"
+          AppSettings__EnableAuth: "true"
+          AppSettings__EnableWebSockets: "false"
+          AppSettings__EnableMetrics: "false"
+          AppSettings__EnableRealProcessing: "false"
+          AppSettings__EnableDocs: "true"
+          AppSettings__EnableCors: "true"
+          ASPNETCORE_URLS: "http://localhost:5000"
         run: |
           cd YoutubeRag.Api
-          dotnet run --no-build --configuration Release &
-          echo $! > app.pid
-        env:
-          ASPNETCORE_ENVIRONMENT: Testing
-          ConnectionStrings__DefaultConnection: "Server=localhost;Port=3306;Database=youtube_rag_db;Uid=youtube_rag_user;Pwd=youtube_rag_password;"
-          ConnectionStrings__Redis: "localhost:6379"
+          dotnet run --no-build --configuration Release > ../api.log 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+          echo "Started API with PID: $API_PID"
 
-      - name: Wait for application
-        run: timeout 60 bash -c 'until curl -f http://localhost:5000/health; do sleep 2; done'
+          # Wait for API to be ready (90 seconds timeout)
+          echo "Waiting for API to start..."
+          MAX_ATTEMPTS=45
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+
+            # Check if API process is still running
+            if ! kill -0 $API_PID 2>/dev/null; then
+              echo "::error::API process died unexpectedly"
+              echo "API Logs:"
+              cat ../api.log
+              exit 1
+            fi
+
+            # Check API health endpoint
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ API is ready (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+              echo ""
+              echo "Health check successful!"
+              break
+            fi
+
+            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+              echo "::error::API failed to start within timeout"
+              echo "Last HTTP code: $HTTP_CODE"
+              echo ""
+              echo "API Logs:"
+              cat ../api.log
+              exit 1
+            fi
+
+            echo "⏳ Waiting for API... (attempt $ATTEMPT/$MAX_ATTEMPTS, HTTP $HTTP_CODE)"
+            sleep 2
+          done
 
       - name: Run ${{ matrix.test }}
         run: |
@@ -250,11 +455,26 @@ jobs:
           path: performance-tests/k6/reports/
           retention-days: 30
 
-      - name: Stop application
+      - name: Upload API logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ${{ matrix.test }}-api-logs
+          path: api.log
+          retention-days: 7
+
+      - name: Stop API Server
         if: always()
         run: |
-          if [ -f YoutubeRag.Api/app.pid ]; then
-            kill $(cat YoutubeRag.Api/app.pid) || true
+          if [ ! -z "${{ env.API_PID }}" ]; then
+            echo "Stopping API server (PID: ${{ env.API_PID }})..."
+            kill ${{ env.API_PID }} || true
+            sleep 2
+            # Force kill if still running
+            kill -9 ${{ env.API_PID }} 2>/dev/null || true
+            echo "API server stopped"
+          else
+            echo "No API PID found, skipping stop"
           fi
 
   # Performance regression detection
