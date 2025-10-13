@@ -1,0 +1,110 @@
+# GitLeaks Configuration
+# Configured to reduce false positives while maintaining security
+
+title = "YoutubeRag GitLeaks Configuration"
+
+[extend]
+# Use the default GitLeaks ruleset
+useDefault = true
+
+# Allowlist configuration to exclude false positives
+[[allowlist]]
+description = "Ignore test files and fixtures"
+paths = [
+    '''.*\.Tests/.*''',
+    '''.*\.Tests\.Integration/.*''',
+    '''.*\.Tests\.Unit/.*''',
+    '''tests/.*''',
+    '''test/.*''',
+    '''.*/TestData/.*''',
+    '''.*/testdata/.*''',
+    '''.*/Fixtures/.*''',
+    '''.*/fixtures/.*''',
+]
+
+[[allowlist]]
+description = "Ignore documentation and examples"
+paths = [
+    '''docs/.*\.md''',
+    '''.*README\.md''',
+    '''.*CHANGELOG\.md''',
+    '''examples/.*''',
+    '''.*/examples/.*''',
+]
+
+[[allowlist]]
+description = "Ignore common configuration examples"
+regexes = [
+    '''example\.com''',
+    '''your-api-key-here''',
+    '''YOUR_SECRET_HERE''',
+    '''xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx''',
+    '''REPLACE_ME''',
+    '''TODO:.*''',
+]
+
+[[allowlist]]
+description = "Ignore common false positives"
+regexes = [
+    # Docker image references (not secrets)
+    '''FROM\s+[\w\-./]+:[\w\-.]+''',
+    # NuGet package versions (not secrets)
+    '''Version=[\d.]+''',
+    # Connection string placeholders
+    '''Server=localhost''',
+    '''Database=\w+''',
+    # Git commit SHAs (not secrets)
+    '''[a-f0-9]{40}''',
+]
+
+[[allowlist]]
+description = "Ignore appsettings templates and examples"
+paths = [
+    '''appsettings\.Example\.json''',
+    '''appsettings\.Template\.json''',
+    '''appsettings\.Development\.json''',  # Development settings often have localhost/defaults
+]
+
+[[allowlist]]
+description = "Ignore CI/CD workflow files with environment variable placeholders"
+paths = [
+    '''.github/workflows/.*\.yml''',
+]
+regexes = [
+    '''\$\{\{\s*secrets\.\w+\s*\}\}''',  # GitHub Actions secret references
+    '''\$\{\{\s*env\.\w+\s*\}\}''',      # GitHub Actions env references
+]
+
+[[allowlist]]
+description = "Ignore known safe patterns in configuration files"
+stopwords = [
+    'example',
+    'sample',
+    'template',
+    'localhost',
+    'testuser',
+    'testpassword',
+    'dummy',
+    'placeholder',
+]
+
+# Custom rules for project-specific patterns
+[[rules]]
+id = "youtube-api-key"
+description = "YouTube API Key"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+tags = ["key", "youtube"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+tags = ["key", "openai"]
+
+# Entropy-based detection configuration
+[allowlist.commits]
+# Add specific commit SHAs to ignore if needed
+# commits = ["commit-sha-here"]
+
+[allowlist.regexes]
+# Additional regex patterns to ignore globally

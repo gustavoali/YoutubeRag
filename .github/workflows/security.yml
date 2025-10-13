@@ -25,7 +25,8 @@ jobs:
   codeql-analysis:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow security scan failures while configuring
+    # SEC-010: Removed continue-on-error - CodeQL should be stable with proper .NET 8.0 build
+    # SARIF uploads don't fail the build, only provide security insights
 
     strategy:
       fail-fast: false
@@ -63,7 +64,8 @@ jobs:
   dependency-scanning:
     name: Dependency Vulnerability Scanning
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow dependency scan failures while configuring
+    continue-on-error: true  # SEC-010: Keep continue-on-error - Snyk requires SNYK_TOKEN secret
+    # NuGet vulnerability check is informational only and won't fail the build
 
     steps:
       - name: Checkout Code
@@ -110,6 +112,7 @@ jobs:
           args: >
             --enableRetired
             --enableExperimental
+            --suppression .dependency-check-suppressions.xml
             --nvdApiKey ${{ secrets.NVD_API_KEY }}
 
       - name: Upload OWASP Results to GitHub
@@ -206,7 +209,7 @@ jobs:
   secret-scanning:
     name: Secret Scanning
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow secret scan failures while configuring
+    # SEC-010: Removed continue-on-error - Now configured with .gitleaks.toml to reduce false positives
 
     steps:
       - name: Checkout Code
@@ -233,7 +236,8 @@ jobs:
   iac-scanning:
     name: IaC Security Scanning
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow IaC scan failures while configuring
+    # SEC-010: Removed continue-on-error - IaC scans should be stable
+    # Checkov is already configured with skip_check for specific rules
 
     steps:
       - name: Checkout Code
@@ -273,7 +277,8 @@ jobs:
   sast:
     name: Static Application Security Testing
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow SAST failures while configuring
+    continue-on-error: true  # SEC-010: Keep continue-on-error - Security Code Scan may fail during installation
+    # Semgrep results are uploaded to SARIF (informational only)
 
     steps:
       - name: Checkout Code
@@ -317,7 +322,8 @@ jobs:
   license-check:
     name: License Compliance Check
     runs-on: ubuntu-latest
-    continue-on-error: true  # Temporary: Allow license check failures while configuring
+    # SEC-010: Removed continue-on-error - License check is informational only
+    # Generates report but does not fail build
 
     steps:
       - name: Checkout Code

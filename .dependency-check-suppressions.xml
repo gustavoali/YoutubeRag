@@ -2,41 +2,142 @@
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
 
   <!--
-    Suppress false positives and known issues
-    Format:
-    - filePath: Pattern to match dependency file
-    - cve: Specific CVE to suppress
-    - Optionally add notes explaining why suppressed
+    OWASP Dependency Check Suppression File - YoutubeRag Project
+
+    This file is used to suppress false positives or known vulnerabilities that have been
+    reviewed and accepted by the security team.
+
+    HOW TO USE THIS FILE:
+    1. Run dependency check and identify false positives
+    2. Add suppression rules below with proper justification
+    3. Include CVE ID, package pattern, and expiration date when applicable
+    4. Review suppressions quarterly to ensure they're still valid
+
+    SUPPRESSION TYPES:
+    - base="true": Suppress all CVEs for matching packages
+    - Specific CVE: Suppress only a specific CVE for a package
+    - filePath regex: Match by file path pattern
+    - packageUrl regex: Match by NuGet package URL pattern
+
+    Last reviewed: 2025-10-13
+    Next review: 2026-01-13
   -->
 
-  <!-- Example: Suppress specific CVE for a package -->
-  <!--
-  <suppress>
-    <notes>
-      This vulnerability does not affect our usage of the package.
-      We only use feature X, which is not vulnerable.
-    </notes>
-    <packageUrl regex="true">^pkg:nuget/PackageName@.*$</packageUrl>
-    <cve>CVE-2023-12345</cve>
-  </suppress>
-  -->
+  <!-- ============================================================================ -->
+  <!-- DEVELOPMENT AND TEST DEPENDENCIES (Not deployed to production)              -->
+  <!-- ============================================================================ -->
 
-  <!-- Suppress development-only dependencies -->
   <suppress base="true">
     <notes>
       Development and test dependencies are not deployed to production.
+      These packages are only used during build and test phases in CI/CD.
+      Reviewed: 2025-10-13
+      Expires: 2026-04-13
     </notes>
     <packageUrl regex="true">^pkg:nuget/(xunit|Moq|FluentAssertions|Bogus|Microsoft\.NET\.Test\.Sdk)@.*$</packageUrl>
   </suppress>
 
-  <!-- Suppress coverlet (code coverage tool) -->
   <suppress base="true">
     <notes>
-      Code coverage tool used only in development/CI, not in production.
+      Code coverage tools used only in development/CI, not in production.
+      Reviewed: 2025-10-13
+      Expires: 2026-04-13
     </notes>
     <packageUrl regex="true">^pkg:nuget/coverlet\..*@.*$</packageUrl>
   </suppress>
 
+  <suppress base="true">
+    <notes>
+      Playwright is a test automation framework used only in E2E tests.
+      Not included in production builds or deployments.
+      Reviewed: 2025-10-13
+      Expires: 2026-04-13
+    </notes>
+    <packageUrl regex="true">^pkg:nuget/Microsoft\.Playwright.*@.*$</packageUrl>
+  </suppress>
+
+  <!-- ============================================================================ -->
+  <!-- BUILD AND ANALYSIS TOOLS (Not deployed to production)                       -->
+  <!-- ============================================================================ -->
+
+  <suppress base="true">
+    <notes>
+      Build analyzers and code quality tools are not deployed to production.
+      These are development-time dependencies only.
+      Reviewed: 2025-10-13
+      Expires: 2026-04-13
+    </notes>
+    <packageUrl regex="true">^pkg:nuget/(StyleCop|SonarAnalyzer|Roslynator|Microsoft\.CodeAnalysis).*@.*$</packageUrl>
+  </suppress>
+
+  <!-- ============================================================================ -->
+  <!-- KNOWN FALSE POSITIVES (Update as scan results come in)                      -->
+  <!-- ============================================================================ -->
+
+  <!--
+    Template for adding specific CVE suppressions:
+
+    <suppress>
+      <notes>
+        [Detailed explanation of why this is a false positive or accepted risk]
+        Affected package: [Package name and version]
+        Vulnerability: [Description]
+        Why not applicable: [Specific reason]
+        Reviewed by: [Name/Team]
+        Date: [YYYY-MM-DD]
+        Expires: [YYYY-MM-DD] (Optional - for temporary suppressions)
+      </notes>
+      <packageUrl regex="true">^pkg:nuget/PackageName@version$</packageUrl>
+      <cve>CVE-XXXX-XXXXX</cve>
+    </suppress>
+  -->
+
+  <!-- ============================================================================ -->
+  <!-- ACCEPTED RISKS (Requires security team approval)                            -->
+  <!-- ============================================================================ -->
+
+  <!--
+    Use this section for known vulnerabilities that cannot be immediately fixed
+    due to lack of available patches or breaking changes in newer versions.
+
+    Each entry MUST include:
+    - Risk assessment
+    - Mitigation measures in place
+    - Approval from security team
+    - Monthly review schedule
+    - Plan for remediation
+  -->
+
+  <!-- ============================================================================ -->
+  <!-- PROJECT-SPECIFIC SUPPRESSIONS                                               -->
+  <!-- ============================================================================ -->
+
   <!-- Add project-specific suppressions below as needed -->
+
+  <!--
+    GUIDELINES FOR ADDING SUPPRESSIONS:
+
+    1. TEMPORARY SUPPRESSIONS: Use expiration dates
+       - Review every 3-6 months
+       - Re-evaluate when package versions update
+
+    2. PERMANENT SUPPRESSIONS: For confirmed false positives
+       - Document thoroughly why it's a false positive
+       - Include CVE details and package information
+       - Review annually
+
+    3. ACCEPTED RISKS: For known vulnerabilities that cannot be fixed
+       - Document risk assessment and CVSS score
+       - Include mitigation measures
+       - Require management/security team approval
+       - Review monthly until resolved
+       - Set clear remediation timeline
+
+    4. DEVELOPMENT DEPENDENCIES: Safe to suppress if:
+       - Not deployed to production
+       - Not accessible from production code
+       - Used only in build/test pipeline
+       - Regularly updated to latest versions
+  -->
 
 </suppressions>
