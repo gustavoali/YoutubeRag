@@ -25,6 +25,10 @@ public class VideoService : IVideoService
     private readonly ILogger<VideoService> _logger;
     private readonly IMemoryCache _cache;
 
+    // Static YoutubeClient to avoid creating new instances on each retry
+    // YoutubeClient is thread-safe and can be reused across requests
+    private static readonly YoutubeClient _youtubeClient = new YoutubeClient();
+
     public VideoService(
         IUnitOfWork unitOfWork,
         IMapper mapper,
@@ -224,20 +228,39 @@ public class VideoService : IVideoService
         _logger.LogInformation("Submitting YouTube URL for user {UserId}: {Url}", userId, submitDto.Url);
 
         // Rate limiting check: max 10 submissions per minute per user
+        // Thread-safe implementation using lock for atomic check-and-increment
         var rateLimitKey = $"video_submission_rate_limit:{userId}";
-        var submissionCount = _cache.GetOrCreate(rateLimitKey, entry =>
+        var lockKey = $"video_submission_lock:{userId}";
+
+        // Get or create the lock object for this user
+        var lockObject = _cache.GetOrCreate(lockKey, entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
-            return 0;
+            entry.Priority = CacheItemPriority.Normal;
+            return new object();
         });
 
-        if (submissionCount >= 10)
+        // Use lock to ensure atomic check-and-increment
+        int newCount;
+        lock (lockObject!)
         {
-            _logger.LogWarning("Rate limit exceeded for user {UserId}", userId);
-            throw new InvalidOperationException("Rate limit exceeded. Maximum 10 video submissions per minute.");
+            var currentCount = _cache.GetOrCreate(rateLimitKey, entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+                return 0;
+            });
+
+            if (currentCount >= 10)
+            {
+                _logger.LogWarning("Rate limit exceeded for user {UserId}. Current count: {Count}", userId, currentCount);
+                throw new InvalidOperationException("Rate limit exceeded. Maximum 10 video submissions per minute.");
+            }
+
+            newCount = currentCount + 1;
+            _cache.Set(rateLimitKey, newCount, TimeSpan.FromMinutes(1));
         }
 
-        _cache.Set(rateLimitKey, submissionCount + 1, TimeSpan.FromMinutes(1));
+        _logger.LogDebug("Rate limit check passed for user {UserId}. Submissions: {Count}/10", userId, newCount);
 
         // AC1: URL Validation
         var youtubeId = ValidateAndExtractYouTubeId(submitDto.Url);
@@ -411,8 +434,7 @@ public class VideoService : IVideoService
         {
             return await customRetryPolicy.ExecuteAsync(async () =>
             {
-                var youtube = new YoutubeClient();
-                var video = await youtube.Videos.GetAsync(youtubeId, cancellationToken);
+                var video = await _youtubeClient.Videos.GetAsync(youtubeId, cancellationToken);
 
                 return new VideoMetadata
                 {
