@@ -26,6 +26,7 @@ public class VideosController : ControllerBase
     private readonly IVideoIngestionService _videoIngestionService;
     private readonly IJobRepository _jobRepository;
     private readonly IVideoRepository _videoRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IMemoryCache _cache;
     private readonly AppSettings _appSettings;
     private readonly ILogger<VideosController> _logger;
@@ -36,6 +37,7 @@ public class VideosController : ControllerBase
         IVideoIngestionService videoIngestionService,
         IJobRepository jobRepository,
         IVideoRepository videoRepository,
+        IUserRepository userRepository,
         IMemoryCache cache,
         IOptions<AppSettings> appSettings,
         ILogger<VideosController> logger)
@@ -45,6 +47,7 @@ public class VideosController : ControllerBase
         _videoIngestionService = videoIngestionService;
         _jobRepository = jobRepository;
         _videoRepository = videoRepository;
+        _userRepository = userRepository;
         _cache = cache;
         _appSettings = appSettings.Value;
         _logger = logger;
@@ -108,50 +111,124 @@ public class VideosController : ControllerBase
     }
 
     /// <summary>
-    /// Process video from URL (YouTube, etc.)
+    /// Submit YouTube URL for processing (US-101)
     /// </summary>
+    /// <param name="submitDto">The YouTube URL submission request</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Video submission result with video and job information</returns>
+    /// <response code="200">Video submitted successfully for processing</response>
+    /// <response code="400">Invalid YouTube URL or validation error</response>
+    /// <response code="401">User not authenticated</response>
+    /// <response code="500">Internal server error</response>
     [HttpPost("from-url")]
-    public async Task<ActionResult> ProcessVideoFromUrl([FromBody] VideoUrlRequest request)
+    [ProducesResponseType(typeof(VideoSubmissionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<VideoSubmissionResultDto>> ProcessVideoFromUrl(
+        [FromBody] SubmitVideoDto submitDto,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(request.Url))
-        {
-            return BadRequest(new { error = new { code = "INVALID_URL", message = "URL is required" } });
-        }
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         try
         {
-            var userId = User.Identity?.Name ?? "anonymous-user";
-
-            var video = await _videoProcessingService.ProcessVideoFromUrlAsync(
-                request.Url,
-                request.Title,
-                request.Description,
-                userId);
-
-            return Ok(new
+            if (string.IsNullOrEmpty(userId))
             {
-                id = video.Id,
-                title = video.Title,
-                description = video.Description,
-                url = request.Url,
-                youtube_id = video.YouTubeId,
-                thumbnail_url = video.ThumbnailUrl,
-                status = video.Status.ToString(),
-                processing_progress = video.ProcessingProgress,
-                message = _appSettings.UseRealProcessing
-                    ? "Video processing from URL started - real processing"
-                    : "Video processing from URL started - mock mode",
-                created_at = video.CreatedAt
+                return Unauthorized(new ProblemDetails
+                {
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "Unauthorized",
+                    Detail = "User not authenticated",
+                    Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                    Extensions =
+                    {
+                        ["traceId"] = HttpContext.TraceIdentifier,
+                        ["timestamp"] = DateTime.UtcNow
+                    }
+                });
+            }
+
+            // Verify user is active
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null || !user.IsActive)
+            {
+                _logger.LogWarning("Inactive or non-existent user attempted video submission: {UserId}", userId);
+                return Unauthorized(new ProblemDetails
+                {
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "User Not Active",
+                    Detail = "Your account is not active",
+                    Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                    Extensions =
+                    {
+                        ["traceId"] = HttpContext.TraceIdentifier,
+                        ["timestamp"] = DateTime.UtcNow
+                    }
+                });
+            }
+
+            var result = await _videoService.SubmitVideoFromUrlAsync(submitDto, userId, cancellationToken);
+
+            _logger.LogInformation(
+                "Video submitted successfully. VideoId: {VideoId}, JobId: {JobId}, IsExisting: {IsExisting}, UserId: {UserId}",
+                result.VideoId, result.JobId, result.IsExisting, userId);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid YouTube URL for user {UserId}", userId ?? "unknown");
+
+            var errorMessage = ex.ParamName == "url"
+                ? "Invalid YouTube URL format. Supported formats: youtube.com/watch?v=..., youtu.be/..."
+                : "Validation error";
+
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid URL",
+                Detail = errorMessage,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+                Extensions =
+                {
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to extract YouTube metadata: {Url}", submitDto.Url);
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Metadata Extraction Failed",
+                Detail = ex.Message,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                Extensions =
+                {
+                    ["url"] = submitDto.Url,
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
+                }
             });
         }
         catch (Exception ex)
         {
-            return BadRequest(new
+            _logger.LogError(ex, "Unexpected error submitting video: {Url}", submitDto.Url);
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
             {
-                error = new
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Internal Server Error",
+                Detail = "An unexpected error occurred while processing your request",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+                Extensions =
                 {
-                    code = "PROCESSING_ERROR",
-                    message = ex.Message
+                    ["traceId"] = HttpContext.TraceIdentifier,
+                    ["timestamp"] = DateTime.UtcNow
                 }
             });
         }
