@@ -92,7 +92,7 @@ public abstract class E2ETestBase : PageTest
                     $"{testName}_{TestRunId}_failure.png"
                 );
                 await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
-                TestContext.WriteLine($"Screenshot saved: {screenshotPath}");
+                TestContext.Out.WriteLine($"Screenshot saved: {screenshotPath}");
             }
 
             // Save trace on failure
@@ -103,7 +103,7 @@ public abstract class E2ETestBase : PageTest
                     $"trace_{testName}_{TestRunId}.zip"
                 );
                 await Context.Tracing.StopAsync(new() { Path = tracePath });
-                TestContext.WriteLine($"Trace saved: {tracePath}");
+                TestContext.Out.WriteLine($"Trace saved: {tracePath}");
             }
         }
         else if (Context != null)

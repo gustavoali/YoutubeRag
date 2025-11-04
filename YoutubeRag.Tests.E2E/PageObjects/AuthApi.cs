@@ -1,5 +1,5 @@
-using Microsoft.Playwright;
 using System.Text.Json;
+using Microsoft.Playwright;
 
 namespace YoutubeRag.Tests.E2E.PageObjects;
 
