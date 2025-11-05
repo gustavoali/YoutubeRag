@@ -47,4 +47,13 @@ public interface IVideoService
     /// Get videos by user ID
     /// </summary>
     Task<List<VideoListDto>> GetByUserIdAsync(string userId);
+
+    /// <summary>
+    /// Submit a YouTube video URL for processing
+    /// </summary>
+    /// <param name="submitDto">The submission request containing the YouTube URL</param>
+    /// <param name="userId">The ID of the user submitting the video</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The submission result containing video and job information</returns>
+    Task<VideoSubmissionResultDto> SubmitVideoFromUrlAsync(SubmitVideoDto submitDto, string userId, CancellationToken cancellationToken = default);
 }
