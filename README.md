@@ -126,6 +126,21 @@ Creates:
 - **[Developer Setup Guide](docs/devops/DEVELOPER_SETUP_GUIDE.md)** - Detailed setup instructions
 - **[Environment Configuration](docs/devops/ENVIRONMENT_CONSISTENCY_ARCHITECTURE.md)** - Architecture & config
 
+### Methodology & Processes
+> 📚 **Comprehensive methodology documentation** is available in the [claude-context repository](https://github.com/gustavoali/claude-context)
+
+- **[General Methodology](https://github.com/gustavoali/claude-context/tree/main/methodology)** - Reusable development methodology for any project
+  - Two-Track Agile framework
+  - Roles and agent delegation
+  - Git Flow strategy
+  - Testing rules and DoD
+  - Development process (6 phases)
+- **[YoutubeRag Project Docs](https://github.com/gustavoali/claude-context/tree/main/projects/youtuberag)** - Project-specific documentation archive
+  - Sprint reports and retrospectives
+  - Epic implementation details
+  - CI/CD lessons learned
+  - Architecture decisions
+
 ### Development
 - **[DevOps Implementation Plan](docs/devops/DEVOPS_IMPLEMENTATION_PLAN.md)** - Complete DevOps roadmap
 - **[Pre-Commit Hooks Guide](docs/PRE_COMMIT_HOOKS.md)** - Automated code quality checks
