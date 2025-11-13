@@ -16,7 +16,7 @@ public static class TestDataGenerator
     /// <summary>
     /// Generates a fake user entity
     /// </summary>
-    public static User GenerateUser(string? id = null)
+    public static User GenerateUser(string? id = null, bool isActive = true)
     {
         return new User
         {
@@ -24,7 +24,7 @@ public static class TestDataGenerator
             Email = _faker.Internet.Email(),
             Name = _faker.Person.FullName,
             PasswordHash = _faker.Random.AlphaNumeric(60),
-            IsActive = _faker.Random.Bool(),
+            IsActive = isActive, // Default to true for testing, but can be overridden
             CreatedAt = _faker.Date.Past(),
             UpdatedAt = DateTime.UtcNow
         };

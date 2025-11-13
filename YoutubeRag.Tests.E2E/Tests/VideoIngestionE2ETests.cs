@@ -1,6 +1,6 @@
+using System.Text.Json;
 using FluentAssertions;
 using NUnit.Framework;
-using System.Text.Json;
 using YoutubeRag.Tests.E2E.Fixtures;
 
 namespace YoutubeRag.Tests.E2E.Tests;

@@ -29,6 +29,19 @@ public class VideosApi : ApiClient
     }
 
     /// <summary>
+    /// Submit video from YouTube URL (US-101 endpoint)
+    /// </summary>
+    public async Task<IAPIResponse> SubmitVideoFromUrlAsync(string url)
+    {
+        var data = new
+        {
+            url
+        };
+
+        return await PostAsync("/videos/from-url", data);
+    }
+
+    /// <summary>
     /// Process video from URL (legacy endpoint)
     /// </summary>
     public async Task<IAPIResponse> ProcessVideoFromUrlAsync(string url, string? title = null, string? description = null)
